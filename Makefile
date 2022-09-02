@@ -1,24 +1,40 @@
-TARGET := riscv64-unknown-linux-gnu-
+# TARGET := riscv64-unknown-linux-gnu-
 
 CC := $(TARGET)gcc
 LD := $(TARGET)gcc
 OBJCOPY := $(TARGET)objcopy
 
 
-CFLAGS := -fPIC -O3 -fno-builtin-printf -fno-builtin-memcmp -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -fdata-sections -ffunction-sections -I deps/secp256k1/src -I deps/secp256k1 -I deps/ckb-c-std-lib -I deps/ckb-c-std-lib/libc -I deps/ckb-c-std-lib/molecule -I c -I build -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -g
+CFLAGS := -fPIC -O3 -Wall -Werror -Wno-nonnull -Wno-unused-function -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections
+# CFLAGS := $(CFLAGS) -nostdlib -nostdinc -nostartfiles -Wno-nonnull-compare
+CFLAGS := $(CFLAGS) -I src
+# CFLAGS := $(CFLAGS) -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule
 
-LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
+LDFLAGS :=
+# LDFLAGS := $(LDFLAGS) -Wl,--gc-sections -fdata-sections -ffunction-sections  -Wl,-static
 
 
-all: 
+all: clean build/test
 	mkdir -p build
 
 clean: FORCE
 	rm -rf build/*
 
-build/test: src/test/test_base.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^	
-
-
 .PHONY: FORCE
 FORCE:
+
+
+SRC = $(wildcard src/*.c) \
+			$(wildcard src/test/*.c)
+OBJ = $(patsubst %.c,build/%.o,$(notdir ${SRC}))
+
+build/%.o: src/%.c
+	$(CC) $(CFLAGS) -c  $< -o $@
+
+build/%.o: src/test/%.c
+	$(CC) $(CFLAGS) -c  $< -o $@
+
+build/test: $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $^	
+
+

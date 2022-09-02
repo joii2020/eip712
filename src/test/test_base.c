@@ -1,7 +1,13 @@
+#include <assert.h>
+
 #include "eip712.h"
 
+void test_base() {
+  // eip712_data data;
 
-void test() {
-  GEN_EIP712_DATA(ddd, GEN_EIP712_TYPE(), "Mail", GEN_EIP712_DOMAIN(),
-                  GEN_EIP712_MESSAGE());
+}
+
+int main() {
+  test_base();
+  return 0;
 }
