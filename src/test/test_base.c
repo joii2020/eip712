@@ -2,12 +2,10 @@
 
 #include "eip712.h"
 
-void test_base() {
-  // eip712_data data;
-
-}
+int test_base() { return test_eip712(); }
 
 int main() {
-  test_base();
+  int ref = test_base();
+  if (ref) return ref;
   return 0;
 }

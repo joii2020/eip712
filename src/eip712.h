@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
 typedef struct _eip712_domain {
   uint8_t chain_id[32];
   char* name;
@@ -27,16 +28,7 @@ typedef struct _eip712_data {
 
 int get_eip712_hash(eip712_data* data, uint8_t* out_hash);
 
-// Get eip712 template
-//    out_data      : buffer of output data; the data is json
-//    out_data_len  : input out_data length, and output it length
-//    Result        : if success is 0
-int get_eip712_template(char* out_data, size_t* out_data_len);
-
-// Get hash of domain
-int get_eip712_domain_hash(const char* data, size_t len, uint8_t* hash);
-
-// Get hash of message
-int get_eip712_message_hash(const char* data, size_t len, uint8_t* hash);
+// Test inc
+int test_eip712();
 
 #endif  // _SRC_EIP712_H_
