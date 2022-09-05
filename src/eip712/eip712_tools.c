@@ -32,12 +32,14 @@
     Byte strings and address should be prefixed by 0x
 */
 
+#include "eip712/sim_include/keepkey/firmware/eip712_tools.h"
+
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "eip712/sim_include/keepkey/board/confirm_sm.h"
-#include "eip712/sim_include/keepkey/firmware/eip712.h"
 #include "eip712/sim_include/keepkey/firmware/ethereum_tokens.h"
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
 #include "eip712/sim_include/trezor/crypto/memzero.h"
@@ -771,3 +773,107 @@ int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
 
   return SUCCESS;
 }
+
+//////////////////////////////////////////////////////
+
+e_mem gen_mem(uint8_t *buffer, size_t len) {
+  e_mem m;
+  m.buffer = buffer;
+  m.buffer_len = len;
+  m.pos = 0;
+  return m;
+}
+
+void *e_alloc(e_mem *mem, size_t len) {
+  if (mem->buffer_len < len + mem->pos) {
+    assert(false);
+  }
+
+  void *ret = mem->buffer + mem->pos;
+  mem->pos += len;
+
+  memset(ret, 0, len);
+
+  return ret;
+}
+
+e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
+                        e_item *item) {
+  e_item *it = e_alloc(mem, sizeof(e_item));
+  it->key = key;
+  it->type = ETYPE_STRUCT;
+  it->value.data_struct = item;
+
+  append_item(parent, it);
+  return it;
+}
+
+void append_item(e_item *parent, e_item *child) {
+  if (!parent) return;
+  assert(parent->type == ETYPE_STRUCT || parent->type == ETYPE_ARRAY);
+  if (!parent->value.data_struct) {
+    parent->value.data_struct = child;
+  } else {
+    e_item *it = parent->value.data_struct;
+    while (true) {
+      if (!it->sibling) {
+        it->sibling = child;
+        break;
+      }
+      it = it->sibling;
+    }
+  }
+}
+
+e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
+                        const char *val) {
+  e_item *it = e_alloc(mem, sizeof(e_item));
+  it->key = key;
+  it->type = ETYPE_STRING;
+  it->value.data_string = val;
+
+  append_item(parent, it);
+  return it;
+}
+
+e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key) {
+  e_item *it = e_alloc(mem, sizeof(e_item));
+  it->key = key;
+  it->type = ETYPE_ARRAY;
+
+  append_item(parent, it);
+  return it;
+}
+
+void output_item(e_item *it) {
+  printf("{");
+  if (it) {
+    it = it->value.data_struct;
+    while (it) {
+      if (it->key) printf("\"%s\": ", it->key);
+
+      if (it->type == ETYPE_STRING) {
+        printf("\"%s\"", it->value.data_string);
+      }
+      if (it->type == ETYPE_STRUCT) {
+        printf("\n");
+        output_item(it);
+      }
+      if (it->type == ETYPE_ARRAY) {
+        printf("[\n");
+        e_item *itt = it->value.data_struct;
+        while (itt) {
+          output_item(itt);
+          if (itt->sibling) printf(",\n");
+          itt = itt->sibling;
+        }
+        printf("]\n");
+      }
+      if (it->sibling) printf(",\n");
+      it = it->sibling;
+    }
+  }
+  printf("}\n");
+}
+
+int encode_2(e_item *data, uint8_t *hashRet) { return 1; }

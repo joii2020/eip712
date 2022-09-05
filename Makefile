@@ -5,7 +5,7 @@ LD := $(TARGET)gcc
 OBJCOPY := $(TARGET)objcopy
 
 
-CFLAGS := -fPIC -O3 -Wall -Werror -Wno-nonnull -Wno-unused-function -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections
+CFLAGS := -fPIC -O0 -Wall -Werror -Wno-nonnull -Wno-unused-function -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections
 # CFLAGS := $(CFLAGS) -nostdlib -nostdinc -nostartfiles -Wno-nonnull-compare
 CFLAGS := $(CFLAGS) -I src
 # CFLAGS := $(CFLAGS) -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule

@@ -31,4 +31,6 @@ int get_eip712_hash(eip712_data* data, uint8_t* out_hash);
 // Test inc
 int test_eip712();
 
+int test_eip712_2();
+
 #endif  // _SRC_EIP712_H_
