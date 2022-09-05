@@ -53,6 +53,17 @@ But it needs to be ported to risc-v. And because his parameter transfer uses Jso
 
 A verification file has been completed using [npm eip-712](https://www.npmjs.com/package/eip-712) that can be used later to verify that the results are correct.
 
+
+### Generate eip712 data template
+
+In requirements, the ```types``` of eip712 are fixed, and some of these items are filled with the data of the current transaction of ckb.
+
+
+### Remove JSON
+
+The parameter transmission of eip712tool uses json, but this requirement does not need to be developed with json, so it needs to be removed here.
+
+
 ### Test
 
 #### A nodejs demo to generate a real EIP-712 hash
