@@ -845,6 +845,27 @@ e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key) {
   return it;
 }
 
+e_item *get_item(e_item *it, const char *name) {
+  if (it == NULL) return NULL;
+  assert(it->type == ETYPE_STRUCT);
+
+  it = it->value.data_struct;
+  while (it) {
+    if (strcmp(it->key, name) == 0) {
+      return it;
+    }
+    it = it->sibling;
+  }
+  return NULL;
+}
+
+const char *get_item_tostr(e_item *it, const char *name) {
+  it = get_item(it, name);
+  if (it == NULL) return NULL;
+  if (it->type != ETYPE_STRING) return NULL;
+  return it->value.data_string;
+}
+
 void output_item(e_item *it) {
   printf("{");
   if (it) {
@@ -876,4 +897,190 @@ void output_item(e_item *it) {
   printf("}\n");
 }
 
-int encode_2(e_item *data, uint8_t *hashRet) { return 1; }
+int parse_type_2(const e_item *types, const char *type_name, char *typeStr) {
+  json_t const *tarray, *pairs;
+  char append[STRBUFSIZE + 1] = {0};
+  int encTest;
+  const char *typeType = NULL;
+  int errRet = SUCCESS;
+  const json_t *obTest;
+  const char *nameTest;
+  const char *pVal;
+
+  const e_item *type = get_item(types, type_name);
+  if (type == NULL) {
+    return JSON_TYPE_S_ERR;
+  }
+  strncat(typeStr, type->key, STRBUFSIZE - strlen((const char *)typeStr));
+  strncat(typeStr, "(", STRBUFSIZE - strlen((const char *)typeStr));
+
+  e_item * it = type->value.data_struct;
+  while (it ) {
+
+  }
+
+  while (tarray != 0) {
+    if (NULL == (pairs = json_getChild(tarray))) {
+      errRet = JSON_NO_PAIRS;
+      return errRet;
+    }
+    // should be type JSON_TEXT
+    if (pairs->type != JSON_TEXT) {
+      errRet = JSON_PAIRS_NOTEXT;
+      return errRet;
+    } else {
+      if (NULL == (obTest = json_getSibling(pairs))) {
+        errRet = JSON_NO_PAIRS_SIB;
+        return errRet;
+      }
+      typeType = json_getValue(obTest);
+      encTest = encodableType(typeType);
+      if (encTest == UDEF_TYPE) {
+        // This is a user-defined type, parse it and append later
+        if (']' == typeType[strlen(typeType) - 1]) {
+          // array of structs. To parse name, remove array tokens.
+          char typeNoArrTok[MAX_TYPESTRING] = {0};
+          strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
+          if (strlen(typeNoArrTok) < strlen(typeType)) {
+            return UDEF_NAME_ERROR;
+          }
+
+          strtok(typeNoArrTok, "[");
+          if (SUCCESS != (errRet = memcheck())) {
+            return errRet;
+          }
+          if (SUCCESS !=
+              (errRet = parseType(eip712Types, typeNoArrTok, append))) {
+            return errRet;
+          }
+        } else {
+          if (SUCCESS != (errRet = memcheck())) {
+            return errRet;
+          }
+          if (SUCCESS != (errRet = parseType(eip712Types, typeType, append))) {
+            return errRet;
+          }
+        }
+      } else if (encTest == TOO_MANY_UDEFS) {
+        return UDEFS_OVERFLOW;
+      } else if (encTest == NOT_ENCODABLE) {
+        return TYPE_NOT_ENCODABLE;
+      }
+
+      if (NULL == (pVal = json_getValue(pairs))) {
+        errRet = JSON_NOPAIRVAL;
+        return errRet;
+      }
+      strncat(typeStr, typeType, STRBUFSIZE - strlen((const char *)typeStr));
+      strncat(typeStr, " ", STRBUFSIZE - strlen((const char *)typeStr));
+      strncat(typeStr, pVal, STRBUFSIZE - strlen((const char *)typeStr));
+      strncat(typeStr, ",", STRBUFSIZE - strlen((const char *)typeStr));
+    }
+    tarray = json_getSibling(tarray);
+  }
+  // typeStr ends with a ',' unless there are no parameters to the type.
+  if (typeStr[strlen(typeStr) - 1] == ',') {
+    // replace last comma with a paren
+    typeStr[strlen(typeStr) - 1] = ')';
+  } else {
+    // append paren, there are no parameters
+    strncat(typeStr, ")", STRBUFSIZE - 1);
+  }
+  if (strlen(append) > 0) {
+    strncat(typeStr, append, STRBUFSIZE - strlen((const char *)append));
+  }
+
+  return SUCCESS;
+}
+
+int encode_item(e_item *types, e_item *data, const char *type_name,
+                uint8_t *hash_ret) {
+  int ctr;
+  char encTypeStr[STRBUFSIZE + 1] = {0};
+  uint8_t typeHash[32];
+  struct SHA3_CTX finalCtx = {0};
+  int errRet;
+  char *domOrMsgStr = NULL;
+
+  // clear out the user-defined types list
+  for (ctr = 0; ctr < MAX_USERDEF_TYPES; ctr++) {
+    udefList[ctr] = NULL;
+  }
+  if (SUCCESS != (errRet = parse_type_2(types, type_name, encTypeStr))) {
+    return errRet;
+  }
+
+  sha3_256_Init(&finalCtx);
+  sha3_Update(&finalCtx, (const unsigned char *)encTypeStr,
+              (size_t)strlen(encTypeStr));
+  keccak_Final(&finalCtx, typeHash);
+
+  // They typehash must be the first message of the final hash, this is the
+  // start
+  sha3_256_Init(&finalCtx);
+  sha3_Update(&finalCtx, (const unsigned char *)typeHash,
+              (size_t)sizeof(typeHash));
+
+  if (NULL == (typeSprop = json_getProperty(
+                   typesProp, typeS))) {  // e.g., typeS = "EIP712Domain"
+    errRet = JSON_TYPESPROPERR;
+    return errRet;
+  }
+
+  if (0 == strncmp(typeS, "EIP712Domain", sizeof("EIP712Domain"))) {
+    confirmProp = DOMAIN;
+    domOrMsgStr = "domain";
+  } else {
+    // This is the message value encoding
+    confirmProp = MESSAGE;
+    domOrMsgStr = "message";
+  }
+  if (NULL == (domainOrMessageProp = json_getProperty(
+                   jsonVals, domOrMsgStr))) {  // "message" or "domain" property
+    if (confirmProp == DOMAIN) {
+      errRet = JSON_DPROPERR;
+    } else {
+      errRet = JSON_MPROPERR;
+    }
+    return errRet;
+  }
+  if (NULL ==
+      (valsProp = json_getChild(
+           domainOrMessageProp))) {  // "message" or "domain" property values
+    if (confirmProp == MESSAGE) {
+      errRet = NULL_MSG_HASH;  // this is legal, not an error.
+      return errRet;
+    }
+  }
+
+  if (SUCCESS !=
+      (errRet = parseVals(typesProp, typeSprop, valsProp, &finalCtx))) {
+    return errRet;
+  }
+
+  keccak_Final(&finalCtx, hashRet);
+  // clear typeStr
+  memzero(encTypeStr, sizeof(encTypeStr));
+
+  return SUCCESS;
+}
+
+int encode_2(e_item *data, uint8_t *hash_ret) {
+  e_item *types = get_item(data, "types");
+  e_item *domain = get_item(data, "domain");
+  e_item *message = get_item(data, "message");
+  const char *primary_type = get_item_tostr(data, "primaryType");
+
+  uint8_t hash_buffer[2 + 32 + 32] = {0};
+  hash_buffer[0] = 0x19;
+  hash_buffer[1] = 0x01;
+
+  int ret = encode_item(types, domain, "EIP712Domain", hash_buffer + 2);
+  if (ret) return ret;
+
+  ret = encode_item(types, message, primary_type, hash_buffer + 2 + 32);
+  if (ret) return ret;
+
+  keccak_256(hash_buffer, sizeof(hash_buffer), hash_ret);
+  return 0;
+}

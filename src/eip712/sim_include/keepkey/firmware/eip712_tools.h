@@ -172,6 +172,9 @@ e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
                         const char *val);
 e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key);
 
+e_item *get_item(e_item *it, const char *name);
+const char *get_item_tostr(e_item *it, const char *name);
+
 void output_item(e_item *it);
 
 int encode_2(e_item *data, uint8_t *hashRet);

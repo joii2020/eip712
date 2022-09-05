@@ -16,8 +16,10 @@
 #define PRIMETYPE_BUFSIZE 80
 #define DOMAIN_BUFSIZE 300
 #define MESSAGE_BUFSIZE 2000
-#define TYPES_BUFSIZE \
-  2000  // This will be used as the types,values concatenated string
+
+// This will be used as the types,values concatenated string
+#define TYPES_BUFSIZE 2000
+
 // Example
 // DEBUG_DISPLAY_VAL("sig", "sig %s", 65, resp->signature.bytes[ctr]);
 
@@ -228,8 +230,7 @@ int test_eip712_2() {
 
   e_item *root = gen_eip712_data(&mem);
 
-  output_item(root);
-
+  // output_item(root);
   uint8_t ret_hash[32] = {0};
   return encode_2(root, ret_hash);
 }
