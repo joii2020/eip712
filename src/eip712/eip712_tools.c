@@ -34,11 +34,12 @@
 
 #include "eip712/sim_include/keepkey/firmware/eip712_tools.h"
 
-#include <assert.h>
+// #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "c_std_ext.h"
 #include "eip712/sim_include/keepkey/board/confirm_sm.h"
 #include "eip712/sim_include/keepkey/firmware/ethereum_tokens.h"
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
@@ -68,27 +69,27 @@ int memcheck() {
 int encodableType(const char *typeStr) {
   int ctr;
 
-  if (0 == strncmp(typeStr, "address", sizeof("address") - 1)) {
+  if (0 == ext_strncmp(typeStr, "address", sizeof("address") - 1)) {
     return ADDRESS;
   }
-  if (0 == strncmp(typeStr, "string", sizeof("string") - 1)) {
+  if (0 == ext_strncmp(typeStr, "string", sizeof("string") - 1)) {
     return STRING;
   }
-  if (0 == strncmp(typeStr, "int", sizeof("int") - 1)) {
+  if (0 == ext_strncmp(typeStr, "int", sizeof("int") - 1)) {
     // This could be 'int8', 'int16', ..., 'int256'
     return INT;
   }
-  if (0 == strncmp(typeStr, "uint", sizeof("uint") - 1)) {
+  if (0 == ext_strncmp(typeStr, "uint", sizeof("uint") - 1)) {
     // This could be 'uint8', 'uint16', ..., 'uint256'
     return UINT;
   }
-  if (0 == strncmp(typeStr, "bytes", sizeof("bytes") - 1)) {
+  if (0 == ext_strncmp(typeStr, "bytes", sizeof("bytes") - 1)) {
     // This could be 'bytes', 'bytes1', ..., 'bytes32'
     if (0 == strcmp(typeStr, "bytes")) {
       return BYTES;
     } else {
       // parse out the length val
-      uint8_t byteTypeSize = (uint8_t)(strtol((typeStr + 5), NULL, 10));
+      uint8_t byteTypeSize = (uint8_t)str_to_uint32((typeStr + 5));
       if (byteTypeSize > 32) {
         return NOT_ENCODABLE;
       } else {
@@ -104,12 +105,12 @@ int encodableType(const char *typeStr) {
   for (ctr = 0; ctr < MAX_USERDEF_TYPES; ctr++) {
     char typeNoArrTok[MAX_TYPESTRING] = {0};
 
-    strncpy(typeNoArrTok, typeStr, sizeof(typeNoArrTok) - 1);
-    strtok(typeNoArrTok, "[");  // eliminate the array tokens if there
+    ext_strncpy(typeNoArrTok, typeStr, sizeof(typeNoArrTok) - 1);
+    ext_strtok(typeNoArrTok, "[");  // eliminate the array tokens if there
 
     if (udefList[ctr] != 0) {
-      if (0 == strncmp(udefList[ctr], typeNoArrTok,
-                       strlen(udefList[ctr]) - strlen(typeNoArrTok))) {
+      if (0 == ext_strncmp(udefList[ctr], typeNoArrTok,
+                           strlen(udefList[ctr]) - strlen(typeNoArrTok))) {
         return PREV_USERDEF;
       } else {
       }
@@ -157,8 +158,8 @@ int parseType(const json_t *eip712Types, const char *typeS, char *typeStr) {
     return errRet;
   }
 
-  strncat(typeStr, nameTest, STRBUFSIZE - strlen((const char *)typeStr));
-  strncat(typeStr, "(", STRBUFSIZE - strlen((const char *)typeStr));
+  ext_strncat(typeStr, nameTest, STRBUFSIZE - strlen((const char *)typeStr));
+  ext_strncat(typeStr, "(", STRBUFSIZE - strlen((const char *)typeStr));
 
   tarray = json_getChild(jType);
   while (tarray != 0) {
@@ -182,12 +183,12 @@ int parseType(const json_t *eip712Types, const char *typeS, char *typeStr) {
         if (']' == typeType[strlen(typeType) - 1]) {
           // array of structs. To parse name, remove array tokens.
           char typeNoArrTok[MAX_TYPESTRING] = {0};
-          strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
+          ext_strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
           if (strlen(typeNoArrTok) < strlen(typeType)) {
             return UDEF_NAME_ERROR;
           }
 
-          strtok(typeNoArrTok, "[");
+          ext_strtok(typeNoArrTok, "[");
           if (SUCCESS != (errRet = memcheck())) {
             return errRet;
           }
@@ -213,10 +214,10 @@ int parseType(const json_t *eip712Types, const char *typeS, char *typeStr) {
         errRet = JSON_NOPAIRVAL;
         return errRet;
       }
-      strncat(typeStr, typeType, STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, " ", STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, pVal, STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, ",", STRBUFSIZE - strlen((const char *)typeStr));
+      ext_strncat(typeStr, typeType, STRBUFSIZE - strlen((const char *)typeStr));
+      ext_strncat(typeStr, " ", STRBUFSIZE - strlen((const char *)typeStr));
+      ext_strncat(typeStr, pVal, STRBUFSIZE - strlen((const char *)typeStr));
+      ext_strncat(typeStr, ",", STRBUFSIZE - strlen((const char *)typeStr));
     }
     tarray = json_getSibling(tarray);
   }
@@ -226,10 +227,10 @@ int parseType(const json_t *eip712Types, const char *typeS, char *typeStr) {
     typeStr[strlen(typeStr) - 1] = ')';
   } else {
     // append paren, there are no parameters
-    strncat(typeStr, ")", STRBUFSIZE - 1);
+    ext_strncat(typeStr, ")", STRBUFSIZE - 1);
   }
   if (strlen(append) > 0) {
-    strncat(typeStr, append, STRBUFSIZE - strlen((const char *)append));
+    ext_strncat(typeStr, append, STRBUFSIZE - strlen((const char *)append));
   }
 
   return SUCCESS;
@@ -250,8 +251,8 @@ int encAddress(const char *string, uint8_t *encoded) {
     encoded[ctr] = '\0';
   }
   for (ctr = 12; ctr < 32; ctr++) {
-    strncpy(byteStrBuf, &string[2 * ((ctr - 12)) + 2], 2);
-    encoded[ctr] = (uint8_t)(strtol(byteStrBuf, NULL, 16));
+    ext_strncpy(byteStrBuf, &string[2 * ((ctr - 12)) + 2], 2);
+    encoded[ctr] = hex_to_uint8(byteStrBuf);
   }
   return SUCCESS;
 }
@@ -273,8 +274,8 @@ int encodeBytes(const char *string, uint8_t *encoded) {
 
   sha3_256_Init(&byteCtx);
   while (*valStrPtr != '\0') {
-    strncpy(byteStrBuf, valStrPtr, 2);
-    valByte[0] = (uint8_t)(strtol(byteStrBuf, NULL, 16));
+    ext_strncpy(byteStrBuf, valStrPtr, 2);
+    valByte[0] = hex_to_uint8(byteStrBuf);
     sha3_Update(&byteCtx, (const unsigned char *)valByte,
                 (size_t)sizeof(uint8_t));
     valStrPtr += 2;
@@ -292,7 +293,7 @@ int encodeBytesN(const char *typeT, const char *string, uint8_t *encoded) {
   }
 
   // parse out the length val
-  uint8_t byteTypeSize = (uint8_t)(strtol((typeT + 5), NULL, 10));
+  uint8_t byteTypeSize = (uint8_t)(str_to_uint32((typeT + 5)));
   if (32 < byteTypeSize) {
     return BYTESN_SIZE_ERROR;
   }
@@ -303,8 +304,8 @@ int encodeBytesN(const char *typeT, const char *string, uint8_t *encoded) {
   unsigned zeroFillLen = 32 - ((strlen(string) - 2 /* skip '0x' */) / 2);
   // bytesN are zero padded on the right
   for (ctr = zeroFillLen; ctr < 32; ctr++) {
-    strncpy(byteStrBuf, &string[2 + 2 * (ctr - zeroFillLen)], 2);
-    encoded[ctr - zeroFillLen] = (uint8_t)(strtol(byteStrBuf, NULL, 16));
+    ext_strncpy(byteStrBuf, &string[2 + 2 * (ctr - zeroFillLen)], 2);
+    encoded[ctr - zeroFillLen] = hex_to_uint8(byteStrBuf);
   }
   return SUCCESS;
 }
@@ -322,17 +323,17 @@ int dsConfirm(const char *value) {
   static const char *name = NULL, *version = NULL, *chainId = NULL,
                     *verifyingContract = NULL;
 
-  if (0 == strncmp(nameForValue, "name", sizeof("name"))) {
+  if (0 == ext_strncmp(nameForValue, "name", sizeof("name"))) {
     name = value;
   }
-  if (0 == strncmp(nameForValue, "version", sizeof("version"))) {
+  if (0 == ext_strncmp(nameForValue, "version", sizeof("version"))) {
     version = value;
   }
-  if (0 == strncmp(nameForValue, "chainId", sizeof("chainId"))) {
+  if (0 == ext_strncmp(nameForValue, "chainId", sizeof("chainId"))) {
     chainId = value;
   }
-  if (0 ==
-      strncmp(nameForValue, "verifyingContract", sizeof("verifyingContract"))) {
+  if (0 == ext_strncmp(nameForValue, "verifyingContract",
+                       sizeof("verifyingContract"))) {
     verifyingContract = value;
   }
 
@@ -348,10 +349,10 @@ int dsConfirm(const char *value) {
     char chainStr[33];
 
     for (ctr = 2; ctr < 42; ctr += 2) {
-      sscanf((char *)&verifyingContract[ctr], "%2hhx",
-             &addrHexStr[(ctr - 2) / 2]);
+      addrHexStr[(ctr - 2) / 2] = hex_to_uint8(&verifyingContract[ctr]);
+  
     }
-    sscanf((char *)chainId, "%d", &chainInt);
+    chainInt = str_to_uint32(chainId);
 
     // As more chains are supported, add icon choice below
     if (chainInt == 1) {
@@ -359,14 +360,17 @@ int dsConfirm(const char *value) {
     }
 
     assetToken = tokenByChainAddress(chainInt, (uint8_t *)addrHexStr);
-    if (strncmp(assetToken->ticker, " UNKN", 5) == 0) {
+    if (ext_strncmp(assetToken->ticker, " UNKN", 5) == 0) {
     } else {
     }
-    strncpy(title, name, 20);
-    strncat(title, " version ", 32 - strlen(title));
-    strncat(title, version, 32 - strlen(title));
+    ext_strncpy(title, name, 20);
+    ext_strncat(title, " version ", 32 - strlen(title));
+    ext_strncat(title, version, 32 - strlen(title));
     if (iconNum == NO_ICON) {
-      snprintf(chainStr, 32, "chain %s,  ", chainId);
+      // snprintf(chainStr, 32, "chain %s,  ", chainId);
+
+      memcpy(chainStr, "chain ", 6);
+      memcpy(chainStr + 6, chainId, strlen(chainId));
     }
     name = NULL;
     version = NULL;
@@ -400,8 +404,8 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
   bool ds_vals = 0;  // domain sep values are confirmed on a single screen
   int errRet = SUCCESS;
 
-  if (0 ==
-      strncmp(json_getName(jType), "EIP712Domain", sizeof("EIP712Domain"))) {
+  if (0 == ext_strncmp(json_getName(jType), "EIP712Domain",
+                       sizeof("EIP712Domain"))) {
     ds_vals = true;
   }
 
@@ -452,7 +456,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
         errRet = JSON_TYPE_WNOVAL;
         return errRet;
       } else {
-        if (0 == strncmp("address", typeType, strlen("address") - 1)) {
+        if (0 == ext_strncmp("address", typeType, strlen("address") - 1)) {
           if (']' == typeType[strlen(typeType) - 1]) {
             // array of addresses
             json_t const *addrVals = json_getChild(walkVals);
@@ -486,7 +490,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             }
           }
 
-        } else if (0 == strncmp("string", typeType, strlen("string") - 1)) {
+        } else if (0 == ext_strncmp("string", typeType, strlen("string") - 1)) {
           if (']' == typeType[strlen(typeType) - 1]) {
             // array of strings
             json_t const *stringVals = json_getChild(walkVals);
@@ -520,8 +524,8 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             }
           }
 
-        } else if ((0 == strncmp("uint", typeType, strlen("uint") - 1)) ||
-                   (0 == strncmp("int", typeType, strlen("int") - 1))) {
+        } else if ((0 == ext_strncmp("uint", typeType, strlen("uint") - 1)) ||
+                   (0 == ext_strncmp("int", typeType, strlen("int") - 1))) {
           if (']' == typeType[strlen(typeType) - 1]) {
             return INT_ARRAY_ERROR;
           } else {
@@ -531,7 +535,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               confirmValue(valStr);
             }
             uint8_t negInt = 0;  // 0 is positive, 1 is negative
-            if (0 == strncmp("int", typeType, strlen("int") - 1)) {
+            if (0 == ext_strncmp("int", typeType, strlen("int") - 1)) {
               if (*valStr == '-') {
                 negInt = 1;
               }
@@ -548,12 +552,12 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             }
             unsigned zeroFillLen = 32 - ((strlen(valStr) - negInt) / 2 + 1);
             for (ctr = zeroFillLen; ctr < 32; ctr++) {
-              strncpy(byteStrBuf, &valStr[2 * (ctr - (zeroFillLen))], 2);
-              encBytes[ctr] = (uint8_t)(strtol(byteStrBuf, NULL, 16));
+              ext_strncpy(byteStrBuf, &valStr[2 * (ctr - (zeroFillLen))], 2);
+              encBytes[ctr] = hex_to_uint8(byteStrBuf);
             }
           }
 
-        } else if (0 == strncmp("bytes", typeType, strlen("bytes"))) {
+        } else if (0 == ext_strncmp("bytes", typeType, strlen("bytes"))) {
           if (']' == typeType[strlen(typeType) - 1]) {
             return BYTESN_ARRAY_ERROR;
           } else {
@@ -577,7 +581,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             }
           }
 
-        } else if (0 == strncmp("bool", typeType, strlen(typeType))) {
+        } else if (0 == ext_strncmp("bool", typeType, strlen(typeType))) {
           if (']' == typeType[strlen(typeType) - 1]) {
             return BOOL_ARRAY_ERROR;
           } else {
@@ -590,7 +594,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               // leading zeros in bool
               encBytes[ctr] = 0;
             }
-            if (0 == strncmp(valStr, "true", sizeof("true"))) {
+            if (0 == ext_strncmp(valStr, "true", sizeof("true"))) {
               encBytes[31] = 0x01;
             }
           }
@@ -607,11 +611,11 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
           // need to get typehash of type first
           if (']' == typeType[strlen(typeType) - 1]) {
             // array of structs. To parse name, remove array tokens.
-            strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
+            ext_strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
             if (strlen(typeNoArrTok) < strlen(typeType)) {
               return UDEF_ARRAY_NAME_ERR;
             }
-            strtok(typeNoArrTok, "[");
+            ext_strtok(typeNoArrTok, "[");
             if (SUCCESS != (errRet = memcheck())) {
               return errRet;
             }
@@ -651,7 +655,8 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               if (SUCCESS !=
                   (errRet = parseVals(
                        eip712Types,
-                       json_getProperty(eip712Types, strtok(typeNoArrTok, "]")),
+                       json_getProperty(eip712Types,
+                                        ext_strtok(typeNoArrTok, "]")),
                        json_getChild(udefVals),  // where to get the values
                        &eleCtx  // encode hash happens in parse, this is the
                                 // return
@@ -736,7 +741,7 @@ int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
     return errRet;
   }
 
-  if (0 == strncmp(typeS, "EIP712Domain", sizeof("EIP712Domain"))) {
+  if (0 == ext_strncmp(typeS, "EIP712Domain", sizeof("EIP712Domain"))) {
     confirmProp = DOMAIN;
     domOrMsgStr = "domain";
   } else {
@@ -786,7 +791,7 @@ e_mem gen_mem(uint8_t *buffer, size_t len) {
 
 void *e_alloc(e_mem *mem, size_t len) {
   if (mem->buffer_len < len + mem->pos) {
-    assert(false);
+    // assert(false);
   }
 
   void *ret = mem->buffer + mem->pos;
@@ -810,7 +815,7 @@ e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
 
 void append_item(e_item *parent, e_item *child) {
   if (!parent) return;
-  assert(parent->type == ETYPE_STRUCT || parent->type == ETYPE_ARRAY);
+  // assert(parent->type == ETYPE_STRUCT || parent->type == ETYPE_ARRAY);
   if (!parent->value.data_struct) {
     parent->value.data_struct = child;
   } else {

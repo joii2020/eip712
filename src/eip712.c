@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "c_std_ext.h"
 #include "eip712/sim_include/keepkey/board/confirm_sm.h"
 #include "eip712/sim_include/keepkey/firmware/eip712_tools.h"
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
@@ -31,11 +32,11 @@ int parseJsonName(char *name, char *jsonMsg, char *parsedJson,
     return 0;
   }
 
-  if (0 != strncmp(name, "\"primaryType\"", strlen(name))) {
+  if (0 != ext_strncmp(name, "\"primaryType\"", strlen(name))) {
     brackLevel = 1;
     brack = strstr(secStart, "{");
     while (brackLevel > 0) {
-      brackTest = strpbrk(brack + 1, "{}");
+      brackTest = ext_strpbrk(brack + 1, "{}");
       if ('{' == *brackTest) {
         brackLevel++;
       } else if ('}' == *brackTest) {
@@ -56,13 +57,13 @@ int parseJsonName(char *name, char *jsonMsg, char *parsedJson,
 
     // json parser wants to see string json string enclosed in braces, i.e., "{
     // ... }"
-    strcat(parsedJson, "{\0");
-    strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
-    strcat(parsedJson, "}\0");
+    ext_strcat(parsedJson, "{\0");
+    ext_strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
+    ext_strcat(parsedJson, "}\0");
 
   } else {
     // primary type parsing is different
-    typeEnd = strpbrk(secStart, ",\n");
+    typeEnd = ext_strpbrk(secStart, ",\n");
     if (typeEnd == NULL) {
       printf("parsed size of primaryType is NULL!\n");
       return 0;
@@ -76,12 +77,12 @@ int parseJsonName(char *name, char *jsonMsg, char *parsedJson,
     // json parser wants to see string json string enclosed in braces, i.e., "{
     // ... }"
 
-    strcat(parsedJson, "{\0");
-    strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
+    ext_strcat(parsedJson, "{\0");
+    ext_strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
     if (parsedJson[parsedSize] == ',') {
       parsedJson[parsedSize - 1] = 0;
     }
-    strcat(parsedJson, "}\0");
+    ext_strcat(parsedJson, "}\0");
   }
   return 1;
 }
@@ -263,7 +264,7 @@ int test_eip712() {
   json = json_create(jsonStr, mem, sizeof mem / sizeof *mem);
   if (!json) {
     printf("Error json create json, errno = %d.", errno);
-    return EXIT_FAILURE;
+    return 1;
   }
 
   // encode domain separator
@@ -276,11 +277,11 @@ int test_eip712() {
   jsonV = json_create(domainJsonStr, memVals, sizeof memVals / sizeof *memVals);
   if (!jsonT) {
     printf("Error json create jsonT, errno = %d.", errno);
-    return EXIT_FAILURE;
+    return 1;
   }
   if (!jsonV) {
     printf("Error json create jsonV, errno = %d.", errno);
-    return EXIT_FAILURE;
+    return 1;
   }
 
   uint8_t domainSeparator[32];
@@ -293,18 +294,18 @@ int test_eip712() {
                        sizeof memPType / sizeof *memPType);
   if (!jsonV) {
     printf("Error json create second jsonV, errno = %d.", errno);
-    return EXIT_FAILURE;
+    return 1;
   }
   if (!jsonPT) {
     printf("Error json create jsonPT, errno = %d.", errno);
-    return EXIT_FAILURE;
+    return 1;
   }
 
   uint8_t msgHash[32];
   const char *primeType =
       json_getValue(json_getProperty(jsonPT, "primaryType"));
 
-  if (0 == strncmp(primeType, "EIP712Domain", strlen(primeType))) {
+  if (0 == ext_strncmp(primeType, "EIP712Domain", strlen(primeType))) {
     printf("primary type is EIP712Domain, message hash is NULL\n");
   } else if (2 == encode(jsonT, jsonV, primeType, msgHash)) {
     printf("message hash is NULL\n");

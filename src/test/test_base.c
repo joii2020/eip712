@@ -1,10 +1,10 @@
-#include <assert.h>
+// #include <assert.h>
 
 #include "eip712.h"
 
 int test_base() {
-  // return test_eip712();
-  return test_eip712_2();
+  return test_eip712();
+  // return test_eip712_2();
 }
 
 int main() {

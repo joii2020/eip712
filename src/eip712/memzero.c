@@ -8,8 +8,7 @@
 #endif
 
 #ifdef __unix__
-#include <strings.h>
-#include <sys/param.h>
+#include <string.h>
 #endif
 
 // C11's bounds-checking interface.

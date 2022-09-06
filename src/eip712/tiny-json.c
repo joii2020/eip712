@@ -28,7 +28,7 @@
 */
 
 #include <string.h>
-#include <ctype.h>
+// #include <ctype.h>
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
 
 //#include <stdio.h>

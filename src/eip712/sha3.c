@@ -17,7 +17,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  Use this program  at  your own risk!
  */
 
-#include <assert.h>
+// #include <assert.h>
 #include <string.h>
 
 #include "eip712/sim_include/trezor/crypto/sha3.h"
@@ -50,7 +50,7 @@ static void keccak_Init(SHA3_CTX *ctx, unsigned bits)
 
 	memzero(ctx, sizeof(SHA3_CTX));
 	ctx->block_size = rate / 8;
-	assert(rate <= 1600 && (rate % 64) == 0);
+	// assert(rate <= 1600 && (rate % 64) == 0);
 }
 
 /**
@@ -329,7 +329,7 @@ void sha3_Final(SHA3_CTX *ctx, unsigned char* result)
 		ctx->rest = SHA3_FINALIZED; /* mark context as finalized */
 	}
 
-	assert(block_size > digest_length);
+	// assert(block_size > digest_length);
 	if (result) me64_to_le_str(result, ctx->hash, digest_length);
 	memzero(ctx, sizeof(SHA3_CTX));
 }
@@ -358,7 +358,7 @@ void keccak_Final(SHA3_CTX *ctx, unsigned char* result)
 		ctx->rest = SHA3_FINALIZED; /* mark context as finalized */
 	}
 
-	assert(block_size > digest_length);
+	// assert(block_size > digest_length);
 	if (result) me64_to_le_str(result, ctx->hash, digest_length);
 	memzero(ctx, sizeof(SHA3_CTX));
 }

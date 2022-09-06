@@ -28,12 +28,12 @@ typedef enum { ButtonRequestType_ButtonRequest_Other = 1 } ButtonRequestType;
 
 #define DEBUG_DISPLAY_VAL(TITLE, VALNAME, SIZE, BYTES) \
   {                                                    \
-    char str[SIZE + 1];                                \
+    printf("\n%s\n%s ", TITLE, VALNAME);               \
     int ctr;                                           \
     for (ctr = 0; ctr < SIZE / 2; ctr++) {             \
-      snprintf(&str[2 * ctr], 3, "%02x", BYTES);       \
+      printf("%02x", BYTES);                           \
     }                                                  \
-    printf("\n%s\n%s %s\n", TITLE, VALNAME, str);      \
+    printf("\n");                                      \
   }
 
 #endif
