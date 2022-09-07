@@ -3,8 +3,11 @@
 #include "eip712.h"
 
 int test_base() {
-  // return test_eip712();
+#if 0
+  return test_eip712();
+#else
   return test_eip712_2();
+#endif
 }
 
 int main() {

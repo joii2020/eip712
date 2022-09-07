@@ -162,8 +162,8 @@ typedef struct _e_mem {
   size_t pos;
 } e_mem;
 
-e_mem gen_mem(uint8_t *buffer, size_t len);
-void *e_alloc(e_mem *mem, size_t len);
+e_mem eip712_gen_mem(uint8_t *buffer, size_t len);
+void *eip712_alloc(e_mem *mem, size_t len);
 
 e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
                         e_item *item);
@@ -174,6 +174,8 @@ e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key);
 
 e_item *get_item(e_item *it, const char *name);
 const char *get_item_tostr(e_item *it, const char *name);
+
+void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result);
 
 void output_item(e_item *it);
 

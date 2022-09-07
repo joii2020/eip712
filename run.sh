@@ -1,3 +1,4 @@
+make clean
 make all
 if (( $? == 0 ))
 then

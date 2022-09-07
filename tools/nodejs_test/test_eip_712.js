@@ -15,3 +15,6 @@ console.log("Message hash: 0x" + Buffer.from(message_hash).toString("hex"));
 let data1 = new Uint8Array([0x19, 0x01]);
 let last_message = keccak256(Buffer.concat([data1, domain_hash, message_hash]));
 console.log("Last message hash: 0x" + Buffer.from(last_message).toString("hex"));
+
+console.log("domain type-encode:" + eip712.encodeType(g_data, "EIP712Domain"));
+console.log("message type-encode:" + eip712.encodeType(g_data, g_data.primaryType));

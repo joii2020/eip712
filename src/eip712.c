@@ -7,7 +7,6 @@
 #include "eip712/sim_include/keepkey/board/confirm_sm.h"
 #include "eip712/sim_include/keepkey/firmware/eip712_tools.h"
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
-#include "eip712/sim_include/trezor/crypto/sha3.h"
 
 // eip712tool specific defines
 //#define DISPLAY_INTERMEDIATES 1     // define this to display intermediate
@@ -226,7 +225,7 @@ e_item *gen_eip712_data(e_mem *mem) {
 
 int test_eip712_2() {
   uint8_t buffer[1024 * 8];
-  e_mem mem = gen_mem(buffer, sizeof(buffer));
+  e_mem mem = eip712_gen_mem(buffer, sizeof(buffer));
 
   e_item *root = gen_eip712_data(&mem);
 

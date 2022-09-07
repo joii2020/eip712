@@ -39,11 +39,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ckb_keccak256.h"
 #include "eip712/sim_include/keepkey/board/confirm_sm.h"
 #include "eip712/sim_include/keepkey/firmware/ethereum_tokens.h"
 #include "eip712/sim_include/keepkey/firmware/tiny-json.h"
 #include "eip712/sim_include/trezor/crypto/memzero.h"
-#include "eip712/sim_include/trezor/crypto/sha3.h"
 
 unsigned long
     end;  // This is at the end of the data + bss, used for recursion guard
@@ -257,11 +257,7 @@ int encAddress(const char *string, uint8_t *encoded) {
 }
 
 int encString(const char *string, uint8_t *encoded) {
-  struct SHA3_CTX strCtx;
-
-  sha3_256_Init(&strCtx);
-  sha3_Update(&strCtx, (const unsigned char *)string, (size_t)strlen(string));
-  keccak_Final(&strCtx, encoded);
+  keccak_256((const uint8_t *)string, (size_t)strlen(string), encoded);
   return SUCCESS;
 }
 
@@ -271,15 +267,14 @@ int encodeBytes(const char *string, uint8_t *encoded) {
   uint8_t valByte[1];
   char byteStrBuf[3] = {0};
 
-  sha3_256_Init(&byteCtx);
+  keccak_init(&byteCtx);
   while (*valStrPtr != '\0') {
     strncpy(byteStrBuf, valStrPtr, 2);
     valByte[0] = (uint8_t)(strtol(byteStrBuf, NULL, 16));
-    sha3_Update(&byteCtx, (const unsigned char *)valByte,
-                (size_t)sizeof(uint8_t));
+    keccak_update(&byteCtx, (unsigned char *)valByte, (size_t)sizeof(uint8_t));
     valStrPtr += 2;
   }
-  keccak_Final(&byteCtx, encoded);
+  keccak_final(&byteCtx, encoded);
   return SUCCESS;
 }
 
@@ -456,7 +451,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
           if (']' == typeType[strlen(typeType) - 1]) {
             // array of addresses
             json_t const *addrVals = json_getChild(walkVals);
-            sha3_256_Init(&valCtx);  // hash of concatenated encoded strings
+            keccak_init(&valCtx);  // hash of concatenated encoded strings
             while (0 != addrVals) {
               // just walk the string values assuming, for fixed sizes, all
               // values are there.
@@ -470,10 +465,10 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               if (SUCCESS != errRet) {
                 return errRet;
               }
-              sha3_Update(&valCtx, (const unsigned char *)encBytes, 32);
+              keccak_update(&valCtx, (unsigned char *)encBytes, 32);
               addrVals = json_getSibling(addrVals);
             }
-            keccak_Final(&valCtx, encBytes);
+            keccak_final(&valCtx, encBytes);
           } else {
             if (ds_vals) {
               dsConfirm(valStr);
@@ -491,7 +486,7 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             // array of strings
             json_t const *stringVals = json_getChild(walkVals);
             uint8_t strEncBytes[32];
-            sha3_256_Init(&valCtx);  // hash of concatenated encoded strings
+            keccak_init(&valCtx);  // hash of concatenated encoded strings
             while (0 != stringVals) {
               // just walk the string values assuming, for fixed sizes, all
               // values are there.
@@ -504,10 +499,10 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               if (SUCCESS != errRet) {
                 return errRet;
               }
-              sha3_Update(&valCtx, (const unsigned char *)strEncBytes, 32);
+              keccak_update(&valCtx, (unsigned char *)strEncBytes, 32);
               stringVals = json_getSibling(stringVals);
             }
-            keccak_Final(&valCtx, encBytes);
+            keccak_final(&valCtx, encBytes);
           } else {
             if (ds_vals) {
               dsConfirm(valStr);
@@ -628,10 +623,8 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
               return errRet;
             }
           }
-          sha3_256_Init(&valCtx);
-          sha3_Update(&valCtx, (const unsigned char *)encSubTypeStr,
-                      (size_t)strlen(encSubTypeStr));
-          keccak_Final(&valCtx, encBytes);
+          keccak_256((const uint8_t *)encSubTypeStr,
+                     (size_t)strlen(encSubTypeStr), encBytes);
 
           if (']' == typeType[strlen(typeType) - 1]) {
             // array of udefs
@@ -639,12 +632,12 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
             struct SHA3_CTX arrCtx = {0};  // array elements hash context
             uint8_t eleHashBytes[32];
 
-            sha3_256_Init(&arrCtx);
+            keccak_init(&arrCtx);
 
             json_t const *udefVals = json_getChild(walkVals);
             while (0 != udefVals) {
-              sha3_256_Init(&eleCtx);
-              sha3_Update(&eleCtx, (const unsigned char *)encBytes, 32);
+              keccak_init(&eleCtx);
+              keccak_update(&eleCtx, (unsigned char *)encBytes, 32);
               if (SUCCESS != (errRet = memcheck())) {
                 return errRet;
               }
@@ -658,18 +651,18 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
                        ))) {
                 return errRet;
               }
-              keccak_Final(&eleCtx, eleHashBytes);
-              sha3_Update(&arrCtx, (const unsigned char *)eleHashBytes, 32);
+              keccak_final(&eleCtx, eleHashBytes);
+              keccak_update(&arrCtx, (unsigned char *)eleHashBytes, 32);
               // just walk the udef values assuming, for fixed sizes, all values
               // are there.
               udefVals = json_getSibling(udefVals);
             }
-            keccak_Final(&arrCtx, encBytes);
+            keccak_final(&arrCtx, encBytes);
 
           } else {
-            sha3_256_Init(&valCtx);
-            sha3_Update(&valCtx, (const unsigned char *)encBytes,
-                        (size_t)sizeof(encBytes));
+            keccak_init(&valCtx);
+            keccak_update(&valCtx, (unsigned char *)encBytes,
+                          (size_t)sizeof(encBytes));
             if (SUCCESS != (errRet = memcheck())) {
               return errRet;
             }
@@ -681,13 +674,13 @@ int parseVals(const json_t *eip712Types, const json_t *jType,
                      ))) {
               return errRet;
             }
-            keccak_Final(&valCtx, encBytes);
+            keccak_final(&valCtx, encBytes);
           }
         }
       }
 
       // hash encoded bytes to final context
-      sha3_Update(msgCtx, (const unsigned char *)encBytes, 32);
+      keccak_update(msgCtx, (unsigned char *)encBytes, 32);
     }
     tarray = json_getSibling(tarray);
   }
@@ -718,17 +711,14 @@ int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
   if (SUCCESS != (errRet = parseType(typesProp, typeS, encTypeStr))) {
     return errRet;
   }
+  printf("%s", encTypeStr);
 
-  sha3_256_Init(&finalCtx);
-  sha3_Update(&finalCtx, (const unsigned char *)encTypeStr,
-              (size_t)strlen(encTypeStr));
-  keccak_Final(&finalCtx, typeHash);
+  keccak_256((const uint8_t *)encTypeStr, (size_t)strlen(encTypeStr), typeHash);
 
   // They typehash must be the first message of the final hash, this is the
   // start
-  sha3_256_Init(&finalCtx);
-  sha3_Update(&finalCtx, (const unsigned char *)typeHash,
-              (size_t)sizeof(typeHash));
+  keccak_init(&finalCtx);
+  keccak_update(&finalCtx, (unsigned char *)typeHash, (size_t)sizeof(typeHash));
 
   if (NULL == (typeSprop = json_getProperty(
                    typesProp, typeS))) {  // e.g., typeS = "EIP712Domain"
@@ -767,7 +757,7 @@ int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
     return errRet;
   }
 
-  keccak_Final(&finalCtx, hashRet);
+  keccak_final(&finalCtx, hashRet);
   // clear typeStr
   memzero(encTypeStr, sizeof(encTypeStr));
 
@@ -776,311 +766,9 @@ int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
 
 //////////////////////////////////////////////////////
 
-e_mem gen_mem(uint8_t *buffer, size_t len) {
-  e_mem m;
-  m.buffer = buffer;
-  m.buffer_len = len;
-  m.pos = 0;
-  return m;
-}
-
-void *e_alloc(e_mem *mem, size_t len) {
-  if (mem->buffer_len < len + mem->pos) {
-    assert(false);
-  }
-
-  void *ret = mem->buffer + mem->pos;
-  mem->pos += len;
-
-  memset(ret, 0, len);
-
-  return ret;
-}
-
-e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
-                        e_item *item) {
-  e_item *it = e_alloc(mem, sizeof(e_item));
-  it->key = key;
-  it->type = ETYPE_STRUCT;
-  it->value.data_struct = item;
-
-  append_item(parent, it);
-  return it;
-}
-
-void append_item(e_item *parent, e_item *child) {
-  if (!parent) return;
-  assert(parent->type == ETYPE_STRUCT || parent->type == ETYPE_ARRAY);
-  if (!parent->value.data_struct) {
-    parent->value.data_struct = child;
-  } else {
-    e_item *it = parent->value.data_struct;
-    while (true) {
-      if (!it->sibling) {
-        it->sibling = child;
-        break;
-      }
-      it = it->sibling;
-    }
-  }
-}
-
-e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
-                        const char *val) {
-  e_item *it = e_alloc(mem, sizeof(e_item));
-  it->key = key;
-  it->type = ETYPE_STRING;
-  it->value.data_string = val;
-
-  append_item(parent, it);
-  return it;
-}
-
-e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key) {
-  e_item *it = e_alloc(mem, sizeof(e_item));
-  it->key = key;
-  it->type = ETYPE_ARRAY;
-
-  append_item(parent, it);
-  return it;
-}
-
-e_item *get_item(e_item *it, const char *name) {
-  if (it == NULL) return NULL;
-  assert(it->type == ETYPE_STRUCT);
-
-  it = it->value.data_struct;
-  while (it) {
-    if (strcmp(it->key, name) == 0) {
-      return it;
-    }
-    it = it->sibling;
-  }
-  return NULL;
-}
-
-const char *get_item_tostr(e_item *it, const char *name) {
-  it = get_item(it, name);
-  if (it == NULL) return NULL;
-  if (it->type != ETYPE_STRING) return NULL;
-  return it->value.data_string;
-}
-
-void output_item(e_item *it) {
-  printf("{");
-  if (it) {
-    it = it->value.data_struct;
-    while (it) {
-      if (it->key) printf("\"%s\": ", it->key);
-
-      if (it->type == ETYPE_STRING) {
-        printf("\"%s\"", it->value.data_string);
-      }
-      if (it->type == ETYPE_STRUCT) {
-        printf("\n");
-        output_item(it);
-      }
-      if (it->type == ETYPE_ARRAY) {
-        printf("[\n");
-        e_item *itt = it->value.data_struct;
-        while (itt) {
-          output_item(itt);
-          if (itt->sibling) printf(",\n");
-          itt = itt->sibling;
-        }
-        printf("]\n");
-      }
-      if (it->sibling) printf(",\n");
-      it = it->sibling;
-    }
-  }
-  printf("}\n");
-}
-
-int parse_type_2(const e_item *types, const char *type_name, char *typeStr) {
-  json_t const *tarray, *pairs;
-  char append[STRBUFSIZE + 1] = {0};
-  int encTest;
-  const char *typeType = NULL;
-  int errRet = SUCCESS;
-  const json_t *obTest;
-  const char *nameTest;
-  const char *pVal;
-
-  const e_item *type = get_item(types, type_name);
-  if (type == NULL) {
-    return JSON_TYPE_S_ERR;
-  }
-  strncat(typeStr, type->key, STRBUFSIZE - strlen((const char *)typeStr));
-  strncat(typeStr, "(", STRBUFSIZE - strlen((const char *)typeStr));
-
-  e_item * it = type->value.data_struct;
-  while (it ) {
-
-  }
-
-  while (tarray != 0) {
-    if (NULL == (pairs = json_getChild(tarray))) {
-      errRet = JSON_NO_PAIRS;
-      return errRet;
-    }
-    // should be type JSON_TEXT
-    if (pairs->type != JSON_TEXT) {
-      errRet = JSON_PAIRS_NOTEXT;
-      return errRet;
-    } else {
-      if (NULL == (obTest = json_getSibling(pairs))) {
-        errRet = JSON_NO_PAIRS_SIB;
-        return errRet;
-      }
-      typeType = json_getValue(obTest);
-      encTest = encodableType(typeType);
-      if (encTest == UDEF_TYPE) {
-        // This is a user-defined type, parse it and append later
-        if (']' == typeType[strlen(typeType) - 1]) {
-          // array of structs. To parse name, remove array tokens.
-          char typeNoArrTok[MAX_TYPESTRING] = {0};
-          strncpy(typeNoArrTok, typeType, sizeof(typeNoArrTok) - 1);
-          if (strlen(typeNoArrTok) < strlen(typeType)) {
-            return UDEF_NAME_ERROR;
-          }
-
-          strtok(typeNoArrTok, "[");
-          if (SUCCESS != (errRet = memcheck())) {
-            return errRet;
-          }
-          if (SUCCESS !=
-              (errRet = parseType(eip712Types, typeNoArrTok, append))) {
-            return errRet;
-          }
-        } else {
-          if (SUCCESS != (errRet = memcheck())) {
-            return errRet;
-          }
-          if (SUCCESS != (errRet = parseType(eip712Types, typeType, append))) {
-            return errRet;
-          }
-        }
-      } else if (encTest == TOO_MANY_UDEFS) {
-        return UDEFS_OVERFLOW;
-      } else if (encTest == NOT_ENCODABLE) {
-        return TYPE_NOT_ENCODABLE;
-      }
-
-      if (NULL == (pVal = json_getValue(pairs))) {
-        errRet = JSON_NOPAIRVAL;
-        return errRet;
-      }
-      strncat(typeStr, typeType, STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, " ", STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, pVal, STRBUFSIZE - strlen((const char *)typeStr));
-      strncat(typeStr, ",", STRBUFSIZE - strlen((const char *)typeStr));
-    }
-    tarray = json_getSibling(tarray);
-  }
-  // typeStr ends with a ',' unless there are no parameters to the type.
-  if (typeStr[strlen(typeStr) - 1] == ',') {
-    // replace last comma with a paren
-    typeStr[strlen(typeStr) - 1] = ')';
-  } else {
-    // append paren, there are no parameters
-    strncat(typeStr, ")", STRBUFSIZE - 1);
-  }
-  if (strlen(append) > 0) {
-    strncat(typeStr, append, STRBUFSIZE - strlen((const char *)append));
-  }
-
-  return SUCCESS;
-}
-
-int encode_item(e_item *types, e_item *data, const char *type_name,
-                uint8_t *hash_ret) {
-  int ctr;
-  char encTypeStr[STRBUFSIZE + 1] = {0};
-  uint8_t typeHash[32];
-  struct SHA3_CTX finalCtx = {0};
-  int errRet;
-  char *domOrMsgStr = NULL;
-
-  // clear out the user-defined types list
-  for (ctr = 0; ctr < MAX_USERDEF_TYPES; ctr++) {
-    udefList[ctr] = NULL;
-  }
-  if (SUCCESS != (errRet = parse_type_2(types, type_name, encTypeStr))) {
-    return errRet;
-  }
-
-  sha3_256_Init(&finalCtx);
-  sha3_Update(&finalCtx, (const unsigned char *)encTypeStr,
-              (size_t)strlen(encTypeStr));
-  keccak_Final(&finalCtx, typeHash);
-
-  // They typehash must be the first message of the final hash, this is the
-  // start
-  sha3_256_Init(&finalCtx);
-  sha3_Update(&finalCtx, (const unsigned char *)typeHash,
-              (size_t)sizeof(typeHash));
-
-  if (NULL == (typeSprop = json_getProperty(
-                   typesProp, typeS))) {  // e.g., typeS = "EIP712Domain"
-    errRet = JSON_TYPESPROPERR;
-    return errRet;
-  }
-
-  if (0 == strncmp(typeS, "EIP712Domain", sizeof("EIP712Domain"))) {
-    confirmProp = DOMAIN;
-    domOrMsgStr = "domain";
-  } else {
-    // This is the message value encoding
-    confirmProp = MESSAGE;
-    domOrMsgStr = "message";
-  }
-  if (NULL == (domainOrMessageProp = json_getProperty(
-                   jsonVals, domOrMsgStr))) {  // "message" or "domain" property
-    if (confirmProp == DOMAIN) {
-      errRet = JSON_DPROPERR;
-    } else {
-      errRet = JSON_MPROPERR;
-    }
-    return errRet;
-  }
-  if (NULL ==
-      (valsProp = json_getChild(
-           domainOrMessageProp))) {  // "message" or "domain" property values
-    if (confirmProp == MESSAGE) {
-      errRet = NULL_MSG_HASH;  // this is legal, not an error.
-      return errRet;
-    }
-  }
-
-  if (SUCCESS !=
-      (errRet = parseVals(typesProp, typeSprop, valsProp, &finalCtx))) {
-    return errRet;
-  }
-
-  keccak_Final(&finalCtx, hashRet);
-  // clear typeStr
-  memzero(encTypeStr, sizeof(encTypeStr));
-
-  return SUCCESS;
-}
-
-int encode_2(e_item *data, uint8_t *hash_ret) {
-  e_item *types = get_item(data, "types");
-  e_item *domain = get_item(data, "domain");
-  e_item *message = get_item(data, "message");
-  const char *primary_type = get_item_tostr(data, "primaryType");
-
-  uint8_t hash_buffer[2 + 32 + 32] = {0};
-  hash_buffer[0] = 0x19;
-  hash_buffer[1] = 0x01;
-
-  int ret = encode_item(types, domain, "EIP712Domain", hash_buffer + 2);
-  if (ret) return ret;
-
-  ret = encode_item(types, message, primary_type, hash_buffer + 2 + 32);
-  if (ret) return ret;
-
-  keccak_256(hash_buffer, sizeof(hash_buffer), hash_ret);
-  return 0;
+void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result) {
+  SHA3_CTX ctx;
+  keccak_init(&ctx);
+  keccak_update(&ctx, (unsigned char *)buf, buf_len);
+  keccak_final(&ctx, result);
 }

@@ -7,8 +7,8 @@ OBJCOPY := $(TARGET)objcopy
 
 CFLAGS := -fPIC -O0 -Wall -Werror -Wno-nonnull -Wno-unused-function -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections
 # CFLAGS := $(CFLAGS) -nostdlib -nostdinc -nostartfiles -Wno-nonnull-compare
-CFLAGS := $(CFLAGS) -I src
-# CFLAGS := $(CFLAGS) -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule
+CFLAGS := $(CFLAGS) -I src -I deps/ckb-c-stdlib
+# CFLAGS := $(CFLAGS) -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule
 
 LDFLAGS :=
 # LDFLAGS := $(LDFLAGS) -Wl,--gc-sections -fdata-sections -ffunction-sections  -Wl,-static
