@@ -2,9 +2,9 @@ make clean
 make all
 if (( $? == 0 ))
 then
-  echo "\033[32mSuccess\033[0m"
+  echo -e "\033[32mSuccess\033[0m"
 else
-  echo "\033[31mMake all Failed\033[0m"
+  echo -e "\033[31mMake all Failed\033[0m"
   exit 2
 fi
 
@@ -12,8 +12,8 @@ fi
 
 if (( $? == 0 ))
 then
-  echo "\033[32mSuccess\033[0m"
+  echo -e "\033[32mSuccess\033[0m"
 else
-  echo "\033[31mtest Failed\033[0m"
+  echo -e "\033[31mtest Failed\033[0m"
   exit 2
 fi

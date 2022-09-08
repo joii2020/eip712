@@ -4,88 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "eip712/sim_include/keepkey/board/confirm_sm.h"
-#include "eip712/sim_include/keepkey/firmware/eip712_tools.h"
-#include "eip712/sim_include/keepkey/firmware/tiny-json.h"
-
-// eip712tool specific defines
-//#define DISPLAY_INTERMEDIATES 1     // define this to display intermediate
-// hash results
-#define BUFSIZE 4000
-#define PRIMETYPE_BUFSIZE 80
-#define DOMAIN_BUFSIZE 300
-#define MESSAGE_BUFSIZE 2000
-
-// This will be used as the types,values concatenated string
-#define TYPES_BUFSIZE 2000
-
-// Example
-// DEBUG_DISPLAY_VAL("sig", "sig %s", 65, resp->signature.bytes[ctr]);
-
-int parseJsonName(char *name, char *jsonMsg, char *parsedJson,
-                  unsigned maxParsedSize) {
-  char *secStart, *brack, *brackTest, *typeEnd;
-  unsigned brackLevel, parsedSize;
-
-  if (NULL == (secStart = strstr(jsonMsg, name))) {
-    printf("%s not found!\n", name);
-    return 0;
-  }
-
-  if (0 != strncmp(name, "\"primaryType\"", strlen(name))) {
-    brackLevel = 1;
-    brack = strstr(secStart, "{");
-    while (brackLevel > 0) {
-      brackTest = strpbrk(brack + 1, "{}");
-      if ('{' == *brackTest) {
-        brackLevel++;
-      } else if ('}' == *brackTest) {
-        brackLevel--;
-      } else if (0 == brackTest) {
-        printf("can't parse %s value!\n", name);
-        return 0;
-      }
-      brack = brackTest;
-    }
-
-    parsedSize = brack - secStart + 1;
-    if (parsedSize + 2 > maxParsedSize) {
-      printf("parsed size is %u, larger than max allowed %u\n", parsedSize,
-             maxParsedSize);
-      return 0;
-    }
-
-    // json parser wants to see string json string enclosed in braces, i.e., "{
-    // ... }"
-    strcat(parsedJson, "{\0");
-    strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
-    strcat(parsedJson, "}\0");
-
-  } else {
-    // primary type parsing is different
-    typeEnd = strpbrk(secStart, ",\n");
-    if (typeEnd == NULL) {
-      printf("parsed size of primaryType is NULL!\n");
-      return 0;
-    }
-    if (PRIMETYPE_BUFSIZE < (parsedSize = typeEnd - secStart)) {
-      printf(
-          "primaryType parsed size is %u, greater than max size allowed %u\n",
-          parsedSize, PRIMETYPE_BUFSIZE);
-      return 0;
-    }
-    // json parser wants to see string json string enclosed in braces, i.e., "{
-    // ... }"
-
-    strcat(parsedJson, "{\0");
-    strncpy(&parsedJson[strlen(parsedJson)], secStart, parsedSize);
-    if (parsedJson[parsedSize] == ',') {
-      parsedJson[parsedSize - 1] = 0;
-    }
-    strcat(parsedJson, "}\0");
-  }
-  return 1;
-}
+#include "eip712/eip712_tools.h"
 
 e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
   e_item *d_types = gen_item_struct(mem, root, "types", NULL);
@@ -179,10 +98,11 @@ e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
 e_item *gen_eip712_data_domain(e_mem *mem, e_item *root) {
   e_item *d_domain = gen_item_struct(mem, root, "domain", NULL);
 
-  gen_item_string(mem, d_domain, "chainId", "1");
+  gen_item_num(mem, d_domain, "chainId", "0x01", ETYPE_UINT256);
   gen_item_string(mem, d_domain, "name", "da.systems");
-  gen_item_string(mem, d_domain, "verifyingContract",
-                  "0x0000000000000000000000000000000020210722");
+  gen_item_mem_by_str(mem, d_domain, "verifyingContract",
+                      "0x0000000000000000000000000000000020210722",
+                      ETYPE_ADDRESS);
   gen_item_string(mem, d_domain, "version", "1");
 
   return d_domain;
@@ -198,9 +118,11 @@ e_item *gen_eip712_data_message(e_mem *mem, e_item *root) {
   gen_item_string(mem, d_message, "inputsCapacity", "551.39280335 CKB");
   gen_item_string(mem, d_message, "outputsCapacity", "551.39270335 CKB");
   gen_item_string(mem, d_message, "fee", "0.0001 CKB");
-  gen_item_string(
+
+  gen_item_num(
       mem, d_message, "digest",
-      "0xa71c9bf1cb1686b35a6c2ee4593202bc13279aae96e6ea274d919444f1e3749f");
+      "0xa71c9bf1cb1686b35a6c2ee4593202bc13279aae96e6ea274d919444f1e3749f",
+      ETYPE_BYTES32);
 
   e_item *action = gen_item_struct(mem, d_message, "action", NULL);
   gen_item_string(mem, action, "action", "withdraw_from_wallet");
@@ -232,96 +154,4 @@ int test_eip712_2() {
   // output_item(root);
   uint8_t ret_hash[32] = {0};
   return encode_2(root, ret_hash);
-}
-
-int test_eip712() {
-  // clang-format off
-  static char json_data[] = "{\"types\":{\"EIP712Domain\":[{\"name\":\"chainId\",\"type\":\"uint256\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"verifyingContract\",\"type\":\"address\"},{\"name\":\"version\",\"type\":\"string\"}],\"Action\":[{\"name\":\"action\",\"type\":\"string\"},{\"name\":\"params\",\"type\":\"string\"}],\"Cell\":[{\"name\":\"capacity\",\"type\":\"string\"},{\"name\":\"lock\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"data\",\"type\":\"string\"},{\"name\":\"extraData\",\"type\":\"string\"}],\"Transaction\":[{\"name\":\"DAS_MESSAGE\",\"type\":\"string\"},{\"name\":\"inputsCapacity\",\"type\":\"string\"},{\"name\":\"outputsCapacity\",\"type\":\"string\"},{\"name\":\"fee\",\"type\":\"string\"},{\"name\":\"action\",\"type\":\"Action\"},{\"name\":\"inputs\",\"type\":\"Cell[]\"},{\"name\":\"outputs\",\"type\":\"Cell[]\"},{\"name\":\"digest\",\"type\":\"bytes32\"}]},\"primaryType\":\"Transaction\",\"domain\":{\"chainId\":\"1\",\"name\":\"da.systems\",\"verifyingContract\":\"0x0000000000000000000000000000000020210722\",\"version\":\"1\"},\"message\":{\"DAS_MESSAGE\":\"TRANSFER FROM 0x9176acd39a3a9ae99dcb3922757f8af4f94cdf3c(551.39280335 CKB) TO 0x9176acd39a3a9ae99dcb3922757f8af4f94cdf3c(551.39270335 CKB)\",\"inputsCapacity\":\"551.39280335 CKB\",\"outputsCapacity\":\"551.39270335 CKB\",\"fee\":\"0.0001 CKB\",\"digest\":\"0xa71c9bf1cb1686b35a6c2ee4593202bc13279aae96e6ea274d919444f1e3749f\",\"action\":{\"action\":\"withdraw_from_wallet\",\"params\":\"0x00\"},\"inputs\":[],\"outputs\":[]}}";
-  // clang-format on
-
-  json_t const *json;
-  json_t const *jsonT;
-  json_t const *jsonV;
-  json_t const *jsonPT;
-
-  static char jsonStr[BUFSIZE] = {'\0'};
-  static char typesJsonStr[TYPES_BUFSIZE] = {'\0'};
-  static char primaryTypeJsonStr[PRIMETYPE_BUFSIZE] = {'\0'};
-  static char domainJsonStr[DOMAIN_BUFSIZE] = {'\0'};
-  static char messageJsonStr[MESSAGE_BUFSIZE] = {'\0'};
-
-  memcpy(jsonStr, json_data, sizeof(json_data));
-
-  // parse out the 4 sections
-  parseJsonName("\"types\"", jsonStr, typesJsonStr, TYPES_BUFSIZE);
-  parseJsonName("\"domain\"", jsonStr, domainJsonStr, DOMAIN_BUFSIZE);
-  parseJsonName("\"message\"", jsonStr, messageJsonStr, MESSAGE_BUFSIZE);
-  parseJsonName("\"primaryType\"", jsonStr, primaryTypeJsonStr,
-                MESSAGE_BUFSIZE);
-
-  json_t mem[JSON_OBJ_POOL_SIZE];
-  json = json_create(jsonStr, mem, sizeof mem / sizeof *mem);
-  if (!json) {
-    printf("Error json create json, errno = %d.", errno);
-    return EXIT_FAILURE;
-  }
-
-  // encode domain separator
-
-  json_t memTypes[JSON_OBJ_POOL_SIZE];
-  json_t memVals[JSON_OBJ_POOL_SIZE];
-  json_t memPType[4];
-  jsonT =
-      json_create(typesJsonStr, memTypes, sizeof memTypes / sizeof *memTypes);
-  jsonV = json_create(domainJsonStr, memVals, sizeof memVals / sizeof *memVals);
-  if (!jsonT) {
-    printf("Error json create jsonT, errno = %d.", errno);
-    return EXIT_FAILURE;
-  }
-  if (!jsonV) {
-    printf("Error json create jsonV, errno = %d.", errno);
-    return EXIT_FAILURE;
-  }
-
-  uint8_t domainSeparator[32];
-  encode(jsonT, jsonV, "EIP712Domain", domainSeparator);
-  DEBUG_DISPLAY_VAL("domainSeparator", "hash    ", 65, domainSeparator[ctr]);
-
-  jsonV =
-      json_create(messageJsonStr, memVals, sizeof memVals / sizeof *memVals);
-  jsonPT = json_create(primaryTypeJsonStr, memPType,
-                       sizeof memPType / sizeof *memPType);
-  if (!jsonV) {
-    printf("Error json create second jsonV, errno = %d.", errno);
-    return EXIT_FAILURE;
-  }
-  if (!jsonPT) {
-    printf("Error json create jsonPT, errno = %d.", errno);
-    return EXIT_FAILURE;
-  }
-
-  uint8_t msgHash[32];
-  const char *primeType =
-      json_getValue(json_getProperty(jsonPT, "primaryType"));
-
-  if (0 == strncmp(primeType, "EIP712Domain", strlen(primeType))) {
-    printf("primary type is EIP712Domain, message hash is NULL\n");
-  } else if (2 == encode(jsonT, jsonV, primeType, msgHash)) {
-    printf("message hash is NULL\n");
-  } else {
-    DEBUG_DISPLAY_VAL("message", "hash    ", 65, msgHash[ctr]);
-  }
-
-  uint8_t buf[2 + 32 + 32] = {0};
-  buf[0] = 0x19;
-  buf[1] = 0x01;
-
-  memcpy(buf + 2, domainSeparator, 32);
-  memcpy(buf + 2 + 32, msgHash, 32);
-
-  uint8_t befor_sign[32] = {0};
-  keccak_256(buf, sizeof(buf), befor_sign);
-  DEBUG_DISPLAY_VAL("before sign", "hash    ", 65, befor_sign[ctr]);
-
-  return 0;
 }

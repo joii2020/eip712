@@ -34,78 +34,12 @@
 #ifndef EIP712_H
 #define EIP712_H
 
-#include "eip712/sim_include/keepkey/firmware/tiny-json.h"
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#define USE_KECCAK 1
-#define ADDRESS_SIZE 42
-#define JSON_OBJ_POOL_SIZE 100
 #define STRBUFSIZE 511
-#define MAX_USERDEF_TYPES 10  // This is max number of user defined type allowed
-#define MAX_TYPESTRING 33     // maximum size for a type string
-#define MAX_ENCBYTEN_SIZE 66
-#define STACK_REENTRANCY_REQ \
-  1280  // calculate this from a re-entrant call (unsigned)&p - (unsigned)&end)
-#define STACK_SIZE_GUARD  \
-  (STACK_REENTRANCY_REQ + \
-   64)  // Can't recurse without this much stack available
-
-typedef enum {
-  NOT_ENCODABLE = 0,
-  ADDRESS,
-  STRING,
-  UINT,
-  INT,
-  BYTES,
-  BYTES_N,
-  BOOL,
-  UDEF_TYPE,
-  PREV_USERDEF,
-  TOO_MANY_UDEFS
-} basicType;
-
-typedef enum { DOMAIN = 1, MESSAGE } dm;
-
-// error list status
-#define SUCCESS 1
-#define NULL_MSG_HASH 2  // this is legal, not an error
-#define GENERAL_ERROR 3
-#define UDEF_NAME_ERROR 4
-#define UDEFS_OVERFLOW 5
-#define UDEF_ARRAY_NAME_ERR 6
-#define ADDR_STRING_VFLOW 7
-#define BYTESN_STRING_ERROR 8
-#define BYTESN_SIZE_ERROR 9
-#define INT_ARRAY_ERROR 10
-#define BYTESN_ARRAY_ERROR 11
-#define BOOL_ARRAY_ERROR 12
-#define RECURSION_ERROR 13
-
-#define JSON_PTYPENAMEERR 14
-#define JSON_PTYPEVALERR 15
-#define JSON_TYPESPROPERR 16
-#define JSON_TYPE_SPROPERR 17
-#define JSON_DPROPERR 18
-#define MSG_NO_DS 19
-#define JSON_MPROPERR 20
-#define JSON_PTYPESOBJERR 21
-#define JSON_TYPE_S_ERR 22
-#define JSON_TYPE_S_NAMEERR 23
-#define UNUSED_ERR_2 24  // available for re-use
-#define JSON_NO_PAIRS 25
-#define JSON_PAIRS_NOTEXT 26
-#define JSON_NO_PAIRS_SIB 27
-#define TYPE_NOT_ENCODABLE 28
-#define JSON_NOPAIRVAL 29
-#define JSON_NOPAIRNAME 30
-#define JSON_TYPE_T_NOVAL 31
-#define ADDR_STRING_NULL 32
-#define JSON_TYPE_WNOVAL 33
-
-#define LAST_ERROR JSON_TYPE_WNOVAL
-
-int memcheck(void);
-int encode(const json_t *jsonTypes, const json_t *jsonVals, const char *typeS,
-           uint8_t *hashRet);
 
 typedef enum {
   ETYPE_BYTES1,
@@ -170,6 +104,13 @@ e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
 void append_item(e_item *parent, e_item *child);
 e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
                         const char *val);
+e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
+                            const char *val, e_type type);
+e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
+                     const uint8_t *val, size_t val_size, e_type type);
+e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
+                     const char *val, e_type type);
+
 e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key);
 
 e_item *get_item(e_item *it, const char *name);
@@ -180,5 +121,47 @@ void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result);
 void output_item(e_item *it);
 
 int encode_2(e_item *data, uint8_t *hashRet);
+
+#define CHECK(err)                                                        \
+  {                                                                       \
+    int _err = err;                                                       \
+    if (_err) {                                                           \
+      printf("--CHECK ERR, code: %d, %s:%d\n", _err, __FILE__, __LINE__); \
+      return _err;                                                        \
+    }                                                                     \
+  }
+
+#define CHECK2(cond, rc_code)                                                 \
+  {                                                                           \
+    bool flag = cond;                                                         \
+    if (flag) {                                                               \
+      printf("--CHECK2 ERR, code: %d, %s:%d\n", rc_code, __FILE__, __LINE__); \
+      return rc_code;                                                         \
+    }                                                                         \
+  }
+
+#define ASSERT(cond)                                 \
+  if (!(cond)) {                                     \
+    printf("--Assert, %s:%d\n", __FILE__, __LINE__); \
+    (void)0;                                         \
+  }
+// assert(cond);
+
+typedef enum {
+  EIP712_SUC = 0,
+  EIP712EER_INVALID_ARG,
+  EIP712ERR_ENCODE_TYPE,
+  EIP712ERR_ENCODE_ADDRESS,
+  EIP712ERR_ENCODE_STRING,
+  EIP712ERR_ENCODE_INT,
+  EIP712ERR_ENCODE_BOOL,
+  EIP712ERR_ENCODE_STRUCT,
+  EIP712ERR_ENCODE_BYTES,
+  EIP712ERR_ENCODE_MESSAGE,
+
+  EIP712ERR_ENCODE_UNKNOW,
+} EIP712RcCode;
+
+void dbg_print_mem(const char *name, const uint8_t *buf, size_t len);
 
 #endif
