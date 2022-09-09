@@ -1,13 +1,42 @@
+#define CKB_DECLARATION_ONLY
 
-
-#include "eip712/eip712_tools.h"
+#include "eip712_impl.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "ckb_keccak256.h"
+#include "eip712.h"
 
+////////////////////////////////////////////////////////////////
+// include
+
+#define STRBUFSIZE 511
+
+typedef struct _eip712_type_deps_item {
+  const char *item_type;
+  struct _eip712_type_deps_item *next;
+} eip712_type_deps_item;
+
+typedef enum {
+  EIP712_DOMAIN,
+  EIP712_MESSAGE,
+} EIP712MessageType;
+
+int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
+               struct SHA3_CTX *ctx);
+void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result);
+void dbg_print_mem(const char *name, const uint8_t *buf, size_t len);
+
+const char *G_EIP712_DEFALUT_TYPE[] = {
+    "int8",   "int16",   "int32",  "int64",  "int128",  "int256",
+    "uint8",  "uint16",  "uint32", "uint64", "uint128", "uint256",
+    "bytes1", "bytes2",  "bytes4", "bytes8", "bytes16", "bytes32",
+    "bool",   "address", "string", "bytes",
+};
+
+////////////////////////////////////////////////////////////////
 // memory manager
 
 e_mem eip712_gen_mem(uint8_t *buffer, size_t len) {
@@ -32,6 +61,7 @@ void *eip712_alloc(e_mem *mem, size_t len) {
   return ret;
 }
 
+////////////////////////////////////////////////////////////////
 // eip712_tree
 
 e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
@@ -140,11 +170,11 @@ e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
   it->key = key;
   it->type = type;
 
-  uint8_t buf[32] = {0};
+  uint8_t buf[EIP712_HASH_SIZE] = {0};
   size_t out_len = hex_to_bytes(val, buf);
   ASSERT(out_len);
-  it->value.data_number = (uint8_t *)eip712_alloc(mem, 32);
-  memcpy(it->value.data_number + 32 - out_len, buf, out_len);
+  it->value.data_number = (uint8_t *)eip712_alloc(mem, EIP712_HASH_SIZE);
+  memcpy(it->value.data_number + EIP712_HASH_SIZE - out_len, buf, out_len);
 
   append_item(parent, it);
   return it;
@@ -180,13 +210,6 @@ const char *get_item_tostr(e_item *it, const char *name) {
   return it->value.data_string;
 }
 
-void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result) {
-  struct SHA3_CTX ctx;
-  keccak_init(&ctx);
-  keccak_update(&ctx, (unsigned char *)buf, buf_len);
-  keccak_final(&ctx, result);
-}
-
 // output e_item to json
 void output_item(e_item *it) {
   printf("{");
@@ -218,6 +241,8 @@ void output_item(e_item *it) {
   }
   printf("}\n");
 }
+
+////////////////////////////////////////////////////////////////S
 
 size_t append_str(char *buf, size_t pos, const char *s) {
   size_t str_len = strlen(s);
@@ -260,15 +285,15 @@ bool type_cmp(const char *s1, const char *s2) {
   return is_eq;
 }
 
+void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result) {
+  struct SHA3_CTX ctx;
+  keccak_init(&ctx);
+  keccak_update(&ctx, (unsigned char *)buf, buf_len);
+  keccak_final(&ctx, result);
+}
+
 ////////////////////////////////////////////////////////////////
 // encode
-
-const char *G_EIP712_DEFALUT_TYPE[] = {
-    "int8",   "int16",   "int32",  "int64",  "int128",  "int256",
-    "uint8",  "uint16",  "uint32", "uint64", "uint128", "uint256",
-    "bytes1", "bytes2",  "bytes4", "bytes8", "bytes16", "bytes32",
-    "bool",   "address", "string", "bytes",
-};
 
 bool is_def_type(const char *t) {
   // TODO, can be optimized here
@@ -277,14 +302,6 @@ bool is_def_type(const char *t) {
   }
   return false;
 }
-
-typedef struct _eip712_type_deps_item {
-  const char *item_type;
-  struct _eip712_type_deps_item *next;
-} eip712_type_deps_item;
-
-int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
-               struct SHA3_CTX *ctx);
 
 bool type_deps_list_has(eip712_type_deps_item *begin, const char *type_name) {
   for (eip712_type_deps_item *it = begin; it; it = begin->next) {
@@ -402,7 +419,7 @@ int parse_address(e_item *val, const char *type, uint8_t *encoded) {
     keccak_init(&ctx);
     while (it) {
       CHECK(encode_address(it, encoded));
-      keccak_update(&ctx, encoded, 32);
+      keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
       it = it->sibling;
     }
     keccak_final(&ctx, encoded);
@@ -429,7 +446,7 @@ int parse_string(e_item *val, const char *type, uint8_t *encoded) {
     keccak_init(&ctx);
     while (it) {
       CHECK(encode_string(it, encoded));
-      keccak_update(&ctx, encoded, 32);
+      keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
       it = it->sibling;
     }
     keccak_final(&ctx, encoded);
@@ -443,22 +460,22 @@ int parse_string(e_item *val, const char *type, uint8_t *encoded) {
 int parse_int(e_item *val, const char *type, uint8_t *encoded) {
   CHECK2(is_array(type), EIP712ERR_ENCODE_INT);
 
-  memcpy(encoded, val->value.data_number, 32);
+  memcpy(encoded, val->value.data_number, EIP712_HASH_SIZE);
   return EIP712_SUC;
 }
 
 int parse_bytes(e_item *val, const char *type, uint8_t *encoded) {
   CHECK2(is_array(type), EIP712ERR_ENCODE_BYTES);
-  // CHECK2(val->type == ETYPE_BYTES32, EIP712ERR_ENCODE_BYTES);
+  // TODO need check type
 
   if (strcmp(type, "bytes") == 0) {
     ASSERT(false);  // TODO temporarily unavailable
     return EIP712ERR_ENCODE_UNKNOW;
   } else {
     size_t wide = str_to_int(type + 5);
-    CHECK2(wide > 32, EIP712ERR_ENCODE_BYTES);
-    memset(encoded, 0, 32);
-    memcpy(encoded + 32 - wide, val->value.data_number, wide);
+    CHECK2(wide > EIP712_HASH_SIZE, EIP712ERR_ENCODE_BYTES);
+    memset(encoded, 0, EIP712_HASH_SIZE);
+    memcpy(encoded + EIP712_HASH_SIZE - wide, val->value.data_number, wide);
   }
 
   return EIP712_SUC;
@@ -479,7 +496,7 @@ int encode_struct(e_item *val, e_item *types, const char *type,
                   uint8_t *encoded) {
   struct SHA3_CTX val_ctx = {0};
   keccak_init(&val_ctx);
-  keccak_update(&val_ctx, encoded, 32);
+  keccak_update(&val_ctx, encoded, EIP712_HASH_SIZE);
 
   e_item *type_info = get_item(types, type);
   CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
@@ -512,7 +529,7 @@ int parse_struct(e_item *val, e_item *types, const char *type,
     keccak_init(&ctx);
     while (it) {
       CHECK(encode_struct(it, types, it->key, encoded));
-      keccak_update(&ctx, encoded, 32);
+      keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
       it = it->sibling;
     }
 
@@ -526,7 +543,7 @@ int parse_struct(e_item *val, e_item *types, const char *type,
 
 int parse_val(e_item *val, e_item *types, const char *type,
               struct SHA3_CTX *ctx) {
-  uint8_t encoded[32] = {0};
+  uint8_t encoded[EIP712_HASH_SIZE] = {0};
   if (type_cmp(type, "address")) {
     CHECK(parse_address(val, type, encoded));
   } else if (type_cmp(type, "string")) {
@@ -543,7 +560,7 @@ int parse_val(e_item *val, e_item *types, const char *type,
 
   keccak_update(ctx, (unsigned char *)encoded, sizeof(encoded));
   printf("----type: %s\n", type);
-  dbg_print_mem("----update-hash", encoded, 32);
+  dbg_print_mem("----update-hash", encoded, EIP712_HASH_SIZE);
 
   return EIP712_SUC;  // TODO
 }
@@ -575,11 +592,6 @@ int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
   return EIP712_SUC;
 }
 
-typedef enum {
-  EIP712_DOMAIN,
-  EIP712_MESSAGE,
-} EIP712MessageType;
-
 int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   char enc_type_str[STRBUFSIZE + 1] = {0};
   size_t type_str_out_len = 0;
@@ -603,7 +615,7 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
 
   CHECK(parse_type(types, type_name, enc_type_str, &type_str_out_len));
 
-  uint8_t type_hash[32] = {0};
+  uint8_t type_hash[EIP712_HASH_SIZE] = {0};
   keccak_256((const uint8_t *)enc_type_str, (size_t)strlen(enc_type_str),
              type_hash);
   printf("--type name: %s\n--type encode:%s\n", type_name, enc_type_str);
@@ -627,21 +639,26 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   return EIP712_SUC;
 }
 
-int encode_2(e_item *data, uint8_t *hash_ret) {
-  uint8_t hash_buffer[2 + 32 + 32] = {0x19, 0x01, 0};
+int encode(e_item *data, uint8_t *hash_ret) {
+  uint8_t hash_buffer[2 + EIP712_HASH_SIZE + EIP712_HASH_SIZE] = {0x19, 0x01,
+                                                                  0};
 
   CHECK(encode_item(data, EIP712_DOMAIN, hash_buffer + 2));
-  dbg_print_mem("--domain data hash", hash_buffer + 2, 32);
-  CHECK(encode_item(data, EIP712_MESSAGE, hash_buffer + 2 + 32));
-  dbg_print_mem("--message data hash", hash_buffer + 2 + 32, 32);
+  dbg_print_mem("--domain data hash", hash_buffer + 2, EIP712_HASH_SIZE);
+  CHECK(encode_item(data, EIP712_MESSAGE, hash_buffer + 2 + EIP712_HASH_SIZE));
+  dbg_print_mem("--message data hash", hash_buffer + 2 + EIP712_HASH_SIZE,
+                EIP712_HASH_SIZE);
 
   keccak_256(hash_buffer, sizeof(hash_buffer), hash_ret);
 
-  dbg_print_mem("--befor data hash", hash_ret, 32);
+  dbg_print_mem("--befor data hash", hash_ret, EIP712_HASH_SIZE);
   return EIP712_SUC;
 }
 
 #undef APPEND_STR
+
+////////////////////////////////////////////////////////////////
+// debug
 
 void dbg_print_mem(const char *name, const uint8_t *buf, size_t len) {
   printf("%s:\n", name);

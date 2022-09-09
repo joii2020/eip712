@@ -1,10 +1,13 @@
+#define CKB_DECLARATION_ONLY
+
 #include "eip712.h"
 
+#include <ckb_syscalls.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "eip712/eip712_tools.h"
+#include "eip712_impl.h"
 
 e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
   e_item *d_types = gen_item_struct(mem, root, "types", NULL);
@@ -95,7 +98,8 @@ e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
   return d_types;
 }
 
-e_item *gen_eip712_data_domain(e_mem *mem, e_item *root) {
+e_item *gen_eip712_data_domain(e_mem *mem, e_item *root,
+                               eip712_domain *domain) {
   e_item *d_domain = gen_item_struct(mem, root, "domain", NULL);
 
   gen_item_num(mem, d_domain, "chainId", "0x01", ETYPE_UINT256);
@@ -134,24 +138,29 @@ e_item *gen_eip712_data_message(e_mem *mem, e_item *root) {
   return d_message;
 }
 
-e_item *gen_eip712_data(e_mem *mem) {
+int gen_eip712_data(e_mem *mem, eip712_data *data, e_item **out_item) {
   e_item *root = gen_item_struct(mem, NULL, "", NULL);
 
+  // Fixed content
   gen_eip712_data_types(mem, root);
   gen_item_string(mem, root, "primaryType", "Transaction");
-  gen_eip712_data_domain(mem, root);
+
+  gen_eip712_data_domain(mem, root, &(data->domain));
   gen_eip712_data_message(mem, root);
 
-  return root;
+  *out_item = root;
+  return EIP712_SUC;
 }
 
-int test_eip712_2() {
-  uint8_t buffer[1024 * 8];
+int get_eip712_hash(eip712_data *data, uint8_t *out_hash) {
+  uint8_t buffer[1024 * 8] = {0};
   e_mem mem = eip712_gen_mem(buffer, sizeof(buffer));
 
-  e_item *root = gen_eip712_data(&mem);
+  e_item *edata = 0;
+  CHECK(gen_eip712_data(&mem, data, &edata));
+  CHECK2(!edata, EIP712ERR_GEN_DATA);
 
-  // output_item(root);
-  uint8_t ret_hash[32] = {0};
-  return encode_2(root, ret_hash);
+  CHECK(encode(edata, out_hash));
+
+  return EIP712_SUC;
 }
