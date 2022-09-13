@@ -1,5 +1,3 @@
-#define CKB_DECLARATION_ONLY
-
 #include "eip712_impl.h"
 
 #include <stdint.h>
@@ -7,6 +5,7 @@
 #include <string.h>
 
 #include "ckb_keccak256.h"
+// #include "deps/ckb-c-stdlib/ckb_keccak256.h"
 #include "eip712.h"
 
 ////////////////////////////////////////////////////////////////
@@ -61,13 +60,28 @@ void *eip712_alloc(e_mem *mem, size_t len) {
   return ret;
 }
 
+const char *eip712_alloc_memstr(e_mem *mem, const char *buf) {
+  if (!buf) {
+    return NULL;
+  }
+  size_t len = strlen(buf);
+  if (len == 0) {
+    return "";
+  }
+  ASSERT(len != 0);
+
+  char *r = (char *)eip712_alloc(mem, len + 1);
+  memcpy(r, buf, len);
+  return r;
+}
+
 ////////////////////////////////////////////////////////////////
 // eip712_tree
 
 e_item *gen_item_struct(e_mem *mem, e_item *parent, const char *key,
                         e_item *item) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = key;
+  it->key = eip712_alloc_memstr(mem, key);
   it->type = ETYPE_STRUCT;
   it->value.data_struct = item;
 
@@ -95,9 +109,9 @@ void append_item(e_item *parent, e_item *child) {
 e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
                         const char *val) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = key;
+  it->key = eip712_alloc_memstr(mem, key);
   it->type = ETYPE_STRING;
-  it->value.data_string = val;
+  it->value.data_string = eip712_alloc_memstr(mem, val);
 
   append_item(parent, it);
   return it;
@@ -153,7 +167,7 @@ e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
 e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
                      const uint8_t *val, size_t val_size, e_type type) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = key;
+  it->key = eip712_alloc_memstr(mem, key);
   it->type = type;
 
   it->value.data_bytes.data = (uint8_t *)eip712_alloc(mem, val_size);
@@ -165,9 +179,23 @@ e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
 }
 
 e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
-                     const char *val, e_type type) {
+                     const uint8_t *val, size_t val_size, e_type type) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = key;
+  it->key = eip712_alloc_memstr(mem, key);
+  it->type = type;
+
+  ASSERT(val_size == 32);
+  it->value.data_number = (uint8_t *)eip712_alloc(mem, EIP712_HASH_SIZE);
+  memcpy(it->value.data_number, val, val_size);
+
+  append_item(parent, it);
+  return it;
+}
+
+e_item *gen_item_num_by_str(e_mem *mem, e_item *parent, const char *key,
+                            const char *val, e_type type) {
+  e_item *it = eip712_alloc(mem, sizeof(e_item));
+  it->key = eip712_alloc_memstr(mem, key);
   it->type = type;
 
   uint8_t buf[EIP712_HASH_SIZE] = {0};
@@ -182,7 +210,7 @@ e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
 
 e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = key;
+  it->key = eip712_alloc_memstr(mem, key);
   it->type = ETYPE_ARRAY;
 
   append_item(parent, it);
@@ -210,6 +238,14 @@ const char *get_item_tostr(e_item *it, const char *name) {
   return it->value.data_string;
 }
 
+void output_mem_buf(uint8_t *buf, size_t len) {
+  printf("\"0x");
+  for (size_t i = 0; i < len; i++) {
+    printf("%02x", buf[i]);
+  }
+  printf("\"");
+}
+
 // output e_item to json
 void output_item(e_item *it) {
   printf("{");
@@ -220,12 +256,10 @@ void output_item(e_item *it) {
 
       if (it->type == ETYPE_STRING) {
         printf("\"%s\"", it->value.data_string);
-      }
-      if (it->type == ETYPE_STRUCT) {
+      } else if (it->type == ETYPE_STRUCT) {
         printf("\n");
         output_item(it);
-      }
-      if (it->type == ETYPE_ARRAY) {
+      } else if (it->type == ETYPE_ARRAY) {
         printf("[\n");
         e_item *itt = it->value.data_struct;
         while (itt) {
@@ -234,6 +268,14 @@ void output_item(e_item *it) {
           itt = itt->sibling;
         }
         printf("]\n");
+      } else if (it->type == ETYPE_UINT256) {
+        output_mem_buf(it->value.data_number, 32);
+      } else if (it->type == ETYPE_BYTES32) {
+        output_mem_buf(it->value.data_number, 32);
+      } else if (it->type == ETYPE_ADDRESS) {
+        output_mem_buf(it->value.data_bytes.data, it->value.data_bytes.len);
+      } else {
+        // printf("-----------");
       }
       if (it->sibling) printf(",\n");
       it = it->sibling;
@@ -497,6 +539,8 @@ int encode_struct(e_item *val, e_item *types, const char *type,
   struct SHA3_CTX val_ctx = {0};
   keccak_init(&val_ctx);
   keccak_update(&val_ctx, encoded, EIP712_HASH_SIZE);
+  // dbg_print_mem("------encode struct, update hash", encoded,
+  // EIP712_HASH_SIZE);
 
   e_item *type_info = get_item(types, type);
   CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
@@ -519,23 +563,49 @@ int parse_struct(e_item *val, e_item *types, const char *type,
   } else {
     CHECK(parse_type(types, type, enc_sub_type_str, &out_str_len));
   }
-  printf("parse struct , type encode: %s\n", enc_sub_type_str);
+  printf("------parse struct , type encode: %s\n", enc_sub_type_str);
 
   keccak_256((const uint8_t *)enc_sub_type_str, out_str_len, encoded);
 
   if (struct_is_array) {
+    uint8_t struct_hash[EIP712_HASH_SIZE] = {0};
+    memcpy(struct_hash, encoded, EIP712_HASH_SIZE);
+
+    char real_type[128] = {0};
+    memcpy(real_type, type, strlen(type) - 2);
     e_item *it = val->value.data_struct;
     struct SHA3_CTX ctx;
     keccak_init(&ctx);
     while (it) {
-      CHECK(encode_struct(it, types, it->key, encoded));
+      struct SHA3_CTX val_ctx = {0};
+      keccak_init(&val_ctx);
+      keccak_update(&val_ctx, struct_hash, EIP712_HASH_SIZE);
+      dbg_print_mem("------update struct hash1", struct_hash, EIP712_HASH_SIZE);
+
+      e_item *type_info = get_item(types, real_type);
+      CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
+      parse_vals(type_info, it, types, &val_ctx);
+
+      keccak_final(&val_ctx, encoded);
+
+      // CHECK(encode_struct(it, types, real_type, encoded));
       keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
+      dbg_print_mem("------update struct hash2", encoded, EIP712_HASH_SIZE);
       it = it->sibling;
     }
 
     keccak_final(&ctx, encoded);
   } else {
-    CHECK(encode_struct(val, types, type, encoded));
+    struct SHA3_CTX val_ctx = {0};
+    keccak_init(&val_ctx);
+    keccak_update(&val_ctx, encoded, EIP712_HASH_SIZE);
+
+    e_item *type_info = get_item(types, type);
+    CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
+
+    parse_vals(type_info, val, types, &val_ctx);
+
+    keccak_final(&val_ctx, encoded);
   }
 
   return EIP712_SUC;

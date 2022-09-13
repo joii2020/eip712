@@ -11,7 +11,7 @@
 typedef struct _eip712_domain {
   uint8_t chain_id[EIP712_HASH_SIZE];
   char* name;
-  uint8_t* verifying_contract;
+  uint8_t verifying_contract[20];
   char* version;
 } eip712_domain;
 
@@ -20,11 +20,27 @@ typedef struct _eip712_active {
   char* params;
 } eip712_active;
 
+typedef struct _eip712_cell {
+  char* capacity;
+  char* lock;
+  char* type;
+  char* data;
+  char* extra_data;
+} eip712_cell;
+
 typedef struct _eip712_data {
   eip712_domain domain;
   eip712_active active;
-  char* cell_extra_data;
   char* transaction_das_message;
+  char* inputs_capacity;
+  char* outputs_capacity;
+  char* fee;
+  char* digest;
+
+  eip712_cell* inputs;
+  size_t inputs_len;
+  eip712_cell* outputs;
+  size_t outputs_len;
 } eip712_data;
 
 int get_eip712_hash(eip712_data* data, uint8_t* out_hash);

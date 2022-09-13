@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
+#include "stdio.h"
 
 #define CHECK(err)                                                        \
   {                                                                       \
@@ -99,7 +99,9 @@ e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
 e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
                      const uint8_t *val, size_t val_size, e_type type);
 e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
-                     const char *val, e_type type);
+                     const uint8_t *val, size_t val_size, e_type type);
+e_item *gen_item_num_by_str(e_mem *mem, e_item *parent, const char *key,
+                            const char *val, e_type type);
 
 e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key);
 

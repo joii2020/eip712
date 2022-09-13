@@ -8,7 +8,8 @@ else
   exit 2
 fi
 
-./build/test
+ckb-debugger --bin build/example_base
+# ./build/example_base
 
 if (( $? == 0 ))
 then
