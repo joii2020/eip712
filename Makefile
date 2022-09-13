@@ -39,7 +39,7 @@ build/impl.o: deps/ckb-c-stdlib/libc/src/impl.c
 
 build/example_base: $(OBJ) build/impl.o
 	$(CC) $(LDFLAGS) -o $@ $^
-	$(DCKB_DECLARATION_ONLY) --only-keep-debug $@ $@.debug
-	# $(OBJCOPY) --strip-debug --strip-all $@
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
 
 
