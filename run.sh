@@ -8,6 +8,7 @@ else
   exit 2
 fi
 
+export RUST_LOG=debug
 ckb-debugger --bin build/example_base
 # ./build/example_base
 

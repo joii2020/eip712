@@ -1,9 +1,10 @@
 #include <string.h>
 
-#include "eip712.h"
-#include "eip712_impl.h"
+#include "ckb_syscalls.h"
+#include "eip712.c"
+// #include "eip712_impl.h"
 
-int test1() {
+int example1() {
   uint8_t hash[EIP712_HASH_SIZE] = {0};
   eip712_data data = {0};
   data.domain.chain_id[31] = 1;
@@ -42,7 +43,7 @@ int test1() {
   return 0;
 }
 
-int test2() {
+int example2() {
   uint8_t hash[EIP712_HASH_SIZE] = {0};
   eip712_data data = {0};
   data.domain.chain_id[31] = 9;
@@ -119,8 +120,9 @@ int test2() {
 int main() {
   int ref = 0;
 
-  // ref = test1();
-  ref = test2();
+  ref = example1();
+  if (ref) return ref;
+  ref = example2();
   if (ref) return ref;
   return 0;
 }

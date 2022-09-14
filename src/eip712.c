@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "ckb_syscalls.h"
-#include "eip712_impl.h"
+#include "eip712_impl.c"
 
 e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
   e_item *d_types = gen_item_struct(mem, root, "types", NULL);
@@ -173,7 +173,6 @@ int get_eip712_hash(eip712_data *data, uint8_t *out_hash) {
   e_item *edata = 0;
   CHECK(gen_eip712_data(&mem, data, &edata));
   CHECK2(!edata, EIP712ERR_GEN_DATA);
-
   // output_item(edata);
 
   CHECK(encode(edata, out_hash));
