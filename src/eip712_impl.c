@@ -13,6 +13,7 @@
 
 #define EIP712_STRING_TYPE_MAX_SIZE 256
 #define EIP712_TYPE_STR_BUF_MAX_SIZE 1024 * 4
+#define MEMORY_ALIGNMENT_SIZE 8
 
 typedef struct _eip712_type_deps_item {
   const char *item_type;
@@ -48,6 +49,9 @@ e_mem eip712_gen_mem(uint8_t *buffer, size_t len) {
 }
 
 void *eip712_alloc(e_mem *mem, size_t len) {
+  if (len % MEMORY_ALIGNMENT_SIZE != 0) {
+    len = (len / MEMORY_ALIGNMENT_SIZE + 1) * MEMORY_ALIGNMENT_SIZE;
+  }
   if (mem->buffer_len < len + mem->pos) {
     ASSERT(false);
     return 0;
@@ -756,5 +760,5 @@ void dbg_print_mem(const char *name, const uint8_t *buf, size_t len) {
     }
   }
 
-  printf(output_buf);
+  printf("%s", output_buf);
 }

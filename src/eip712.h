@@ -42,7 +42,7 @@ typedef struct _eip712_data {
   size_t outputs_len;
 } eip712_data;
 
-int get_eip712_hash(eip712_data* data, uint8_t* out_hash);
+int get_eip712_hash(const eip712_data* data, uint8_t* out_hash);
 
 typedef enum {
   EIP712_SUC = 0,

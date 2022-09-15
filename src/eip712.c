@@ -4,10 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ckb_syscalls.h"
 #include "eip712_impl.c"
 
-e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
+int gen_eip712_data_types(e_mem *mem, e_item *root) {
   e_item *d_types = gen_item_struct(mem, root, "types", NULL);
 
   e_item *domain = gen_item_array(mem, d_types, "EIP712Domain");
@@ -93,11 +92,12 @@ e_item *gen_eip712_data_types(e_mem *mem, e_item *root) {
   gen_item_string(mem, it, "name", "digest");
   gen_item_string(mem, it, "type", "bytes32");
 
-  return d_types;
+  return EIP712_SUC;
 }
 
-e_item *gen_eip712_data_domain(e_mem *mem, e_item *root,
-                               eip712_domain *domain) {
+int gen_eip712_data_domain(e_mem *mem, e_item *root,
+                           const eip712_domain *domain) {
+  ASSERT(domain);
   e_item *d_domain = gen_item_struct(mem, root, "domain", NULL);
 
   gen_item_num(mem, d_domain, "chainId", domain->chain_id,
@@ -106,8 +106,7 @@ e_item *gen_eip712_data_domain(e_mem *mem, e_item *root,
   gen_item_mem(mem, d_domain, "verifyingContract", domain->verifying_contract,
                20, ETYPE_ADDRESS);
   gen_item_string(mem, d_domain, "version", domain->version);
-
-  return d_domain;
+  return EIP712_SUC;
 }
 
 typedef enum {
@@ -115,7 +114,36 @@ typedef enum {
   EIP712_CELL_OUTPUT,
 } EIP712CellType;
 
-e_item *gen_eip712_data_message(e_mem *mem, e_item *root, eip712_data *data) {
+int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
+  CHECK2(!cell->capacity, EIP712ERR_GEN_DATA);
+  CHECK2(!cell->lock, EIP712ERR_GEN_DATA);
+  CHECK2(!cell->type, EIP712ERR_GEN_DATA);
+  CHECK2(!cell->data, EIP712ERR_GEN_DATA);
+  CHECK2(!cell->extra_data, EIP712ERR_GEN_DATA);
+
+  e_item *e = gen_item_struct(mem, root, NULL, NULL);
+  gen_item_string(mem, e, "capacity", cell->capacity);
+  gen_item_string(mem, e, "lock", cell->lock);
+  gen_item_string(mem, e, "type", cell->type);
+  gen_item_string(mem, e, "data", cell->data);
+  gen_item_string(mem, e, "extraData", cell->extra_data);
+
+  return EIP712_SUC;
+}
+
+int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
+  ASSERT(data);
+  CHECK2(!data->transaction_das_message, EIP712ERR_GEN_DATA);
+  CHECK2(!data->inputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(!data->outputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(!data->fee, EIP712ERR_GEN_DATA);
+  CHECK2(!data->digest, EIP712ERR_GEN_DATA);
+  CHECK2(!data->active.action, EIP712ERR_GEN_DATA);
+  CHECK2(!data->active.params, EIP712ERR_GEN_DATA);
+
+  CHECK2((data->inputs_len > 0 && !data->inputs), EIP712ERR_GEN_DATA);
+  CHECK2((data->outputs_len > 0 && !data->outputs), EIP712ERR_GEN_DATA);
+
   e_item *d_message = gen_item_struct(mem, root, "message", NULL);
 
   gen_item_string(mem, d_message, "DAS_MESSAGE", data->transaction_das_message);
@@ -131,42 +159,32 @@ e_item *gen_eip712_data_message(e_mem *mem, e_item *root, eip712_data *data) {
 
   e_item *inputs = gen_item_array(mem, d_message, "inputs");
   for (size_t i = 0; i < data->inputs_len; i++) {
-    e_item *e = gen_item_struct(mem, inputs, NULL, NULL);
-    gen_item_string(mem, e, "capacity", data->inputs[i].capacity);
-    gen_item_string(mem, e, "lock", data->inputs[i].lock);
-    gen_item_string(mem, e, "type", data->inputs[i].type);
-    gen_item_string(mem, e, "data", data->inputs[i].data);
-    gen_item_string(mem, e, "extraData", data->inputs[i].extra_data);
+    gen_eip712_cell(mem, inputs, &(data->inputs[i]));
   }
 
   e_item *outputs = gen_item_array(mem, d_message, "outputs");
   for (size_t i = 0; i < data->outputs_len; i++) {
-    e_item *e = gen_item_struct(mem, outputs, NULL, NULL);
-    gen_item_string(mem, e, "capacity", data->outputs[i].capacity);
-    gen_item_string(mem, e, "lock", data->outputs[i].lock);
-    gen_item_string(mem, e, "type", data->outputs[i].type);
-    gen_item_string(mem, e, "data", data->outputs[i].data);
-    gen_item_string(mem, e, "extraData", data->outputs[i].extra_data);
+    gen_eip712_cell(mem, outputs, &(data->outputs[i]));
   }
 
-  return d_message;
+  return EIP712_SUC;
 }
 
-int gen_eip712_data(e_mem *mem, eip712_data *data, e_item **out_item) {
+int gen_eip712_data(e_mem *mem, const eip712_data *data, e_item **out_item) {
   e_item *root = gen_item_struct(mem, NULL, "", NULL);
 
   // Fixed content
-  gen_eip712_data_types(mem, root);
+  CHECK(gen_eip712_data_types(mem, root));
   gen_item_string(mem, root, "primaryType", "Transaction");
 
-  gen_eip712_data_domain(mem, root, &(data->domain));
-  gen_eip712_data_message(mem, root, data);
+  CHECK(gen_eip712_data_domain(mem, root, &(data->domain)));
+  CHECK(gen_eip712_data_message(mem, root, data));
 
   *out_item = root;
   return EIP712_SUC;
 }
 
-int get_eip712_hash(eip712_data *data, uint8_t *out_hash) {
+int get_eip712_hash(const eip712_data *data, uint8_t *out_hash) {
   uint8_t buffer[1024 * 64] = {0};
   e_mem mem = eip712_gen_mem(buffer, sizeof(buffer));
 
