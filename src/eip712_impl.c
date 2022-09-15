@@ -361,10 +361,10 @@ bool type_deps_list_has(eip712_type_deps_item *begin, const char *type_name) {
 
 int parse_type(e_item *types, const char *type_name, char *type_str,
                size_t *readed_pos) {
-  CHECK2(types->type != ETYPE_STRUCT, EIP712ERR_ENCODE_TYPE);
+  CHECK2(types->type == ETYPE_STRUCT, EIP712ERR_ENCODE_TYPE);
 
   e_item *it = get_item(types, type_name);
-  CHECK2(!it && it->type == ETYPE_ARRAY, EIP712ERR_ENCODE_TYPE);
+  CHECK2(it || it->type != ETYPE_ARRAY, EIP712ERR_ENCODE_TYPE);
 
   size_t pos = 0;
 
@@ -383,7 +383,7 @@ int parse_type(e_item *types, const char *type_name, char *type_str,
   eip712_type_deps_item *deps_type = NULL;
   eip712_type_deps_item *cur_deps = NULL;
 
-  CHECK2(it->type != ETYPE_STRUCT, EIP712ERR_ENCODE_TYPE);
+  CHECK2(it->type == ETYPE_STRUCT, EIP712ERR_ENCODE_TYPE);
   while (it) {
     e_item *itt = it->value.data_struct;
 
@@ -447,8 +447,8 @@ int parse_type(e_item *types, const char *type_name, char *type_str,
 }
 
 int encode_address(e_item *it, uint8_t *encoded) {
-  CHECK2(it->type != ETYPE_ADDRESS, EIP712ERR_ENCODE_ADDRESS);
-  CHECK2(it->value.data_bytes.len != 20, EIP712ERR_ENCODE_ADDRESS);
+  CHECK2(it->type == ETYPE_ADDRESS, EIP712ERR_ENCODE_ADDRESS);
+  CHECK2(it->value.data_bytes.len == 20, EIP712ERR_ENCODE_ADDRESS);
 
   memset(encoded, 0, 12);  // Before 12 byte is zero
   memcpy(encoded + 12, it->value.data_bytes.data, it->value.data_bytes.len);
@@ -458,7 +458,7 @@ int encode_address(e_item *it, uint8_t *encoded) {
 
 int parse_address(e_item *val, const char *type, uint8_t *encoded) {
   if (is_array(type)) {
-    CHECK2(val->type != ETYPE_ARRAY, EIP712ERR_ENCODE_ADDRESS);
+    CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_ADDRESS);
 
     e_item *it = val->value.data_struct;
 
@@ -478,7 +478,7 @@ int parse_address(e_item *val, const char *type, uint8_t *encoded) {
 }
 
 int encode_string(e_item *it, uint8_t *encoded) {
-  CHECK2(it->type != ETYPE_STRING, EIP712ERR_ENCODE_STRING);
+  CHECK2(it->type == ETYPE_STRING, EIP712ERR_ENCODE_STRING);
   keccak_256((const uint8_t *)it->value.data_string,
              (size_t)strlen(it->value.data_string), encoded);
   return EIP712_SUC;
@@ -486,7 +486,7 @@ int encode_string(e_item *it, uint8_t *encoded) {
 
 int parse_string(e_item *val, const char *type, uint8_t *encoded) {
   if (is_array(type)) {
-    CHECK2(val->type != ETYPE_ARRAY, EIP712ERR_ENCODE_STRING);
+    CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_STRING);
 
     e_item *it = val->value.data_struct;
     struct SHA3_CTX ctx;
@@ -505,14 +505,14 @@ int parse_string(e_item *val, const char *type, uint8_t *encoded) {
 }
 
 int parse_int(e_item *val, const char *type, uint8_t *encoded) {
-  CHECK2(is_array(type), EIP712ERR_ENCODE_INT);
+  CHECK2(!is_array(type), EIP712ERR_ENCODE_INT);
 
   memcpy(encoded, val->value.data_number, EIP712_HASH_SIZE);
   return EIP712_SUC;
 }
 
 int parse_bytes(e_item *val, const char *type, uint8_t *encoded) {
-  CHECK2(is_array(type), EIP712ERR_ENCODE_BYTES);
+  CHECK2(!is_array(type), EIP712ERR_ENCODE_BYTES);
   // TODO need check type
 
   if (strcmp(type, "bytes") == 0) {
@@ -520,7 +520,7 @@ int parse_bytes(e_item *val, const char *type, uint8_t *encoded) {
     return EIP712ERR_ENCODE_UNKNOW;
   } else {
     size_t wide = str_to_int(type + 5);
-    CHECK2(wide > EIP712_HASH_SIZE, EIP712ERR_ENCODE_BYTES);
+    CHECK2(wide <= EIP712_HASH_SIZE, EIP712ERR_ENCODE_BYTES);
     memset(encoded, 0, EIP712_HASH_SIZE);
     memcpy(encoded + EIP712_HASH_SIZE - wide, val->value.data_number, wide);
   }
@@ -589,7 +589,7 @@ int parse_struct(e_item *val, e_item *types, const char *type,
       dbg_print_mem("------update struct hash1", struct_hash, EIP712_HASH_SIZE);
 
       e_item *type_info = get_item(types, real_type);
-      CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
+      CHECK2(type_info, EIP712ERR_ENCODE_STRUCT);
       parse_vals(type_info, it, types, &val_ctx);
 
       keccak_final(&val_ctx, encoded);
@@ -607,7 +607,7 @@ int parse_struct(e_item *val, e_item *types, const char *type,
     keccak_update(&val_ctx, encoded, EIP712_HASH_SIZE);
 
     e_item *type_info = get_item(types, type);
-    CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
+    CHECK2(type_info, EIP712ERR_ENCODE_STRUCT);
 
     parse_vals(type_info, val, types, &val_ctx);
 
@@ -656,10 +656,10 @@ int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
     const char *item_type_name = get_item_tostr(type_info, "name");
     const char *item_type_type = get_item_tostr(type_info, "type");
 
-    CHECK2(!item_type_name && !item_type_type, EIP712ERR_ENCODE_MESSAGE);
+    CHECK2(item_type_name || item_type_type, EIP712ERR_ENCODE_MESSAGE);
 
     e_item *it = get_item(data_msg, item_type_name);
-    CHECK2(!it, EIP712ERR_ENCODE_MESSAGE);
+    CHECK2(it, EIP712ERR_ENCODE_MESSAGE);
     CHECK(parse_val(it, types, item_type_type, ctx));
 
     type_info = type_info->sibling;
@@ -680,9 +680,9 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   } else {
     CHECK(EIP712EER_INVALID_ARG);
   }
-  CHECK2(!type_name, EIP712ERR_ENCODE_TYPE);
-  CHECK2(!data_msg, EIP712ERR_ENCODE_TYPE);
-  CHECK2(!type_name, EIP712ERR_ENCODE_TYPE);
+  CHECK2(type_name, EIP712ERR_ENCODE_TYPE);
+  CHECK2(data_msg, EIP712ERR_ENCODE_TYPE);
+  CHECK2(type_name, EIP712ERR_ENCODE_TYPE);
 
   e_item *types = get_item(data, "types");
 
@@ -698,8 +698,8 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   dbg_print_mem("----update-hash1", type_hash, sizeof(type_hash));
 
   e_item *type_info = get_item(types, type_name);
-  CHECK2(!type_info, EIP712ERR_ENCODE_MESSAGE);
-  CHECK2(type_info->type != ETYPE_ARRAY, EIP712ERR_ENCODE_MESSAGE);
+  CHECK2((type_info && type_info->type == ETYPE_ARRAY),
+         EIP712ERR_ENCODE_MESSAGE);
 
   parse_vals(type_info, data_msg, types, &keccak_ctx);
 

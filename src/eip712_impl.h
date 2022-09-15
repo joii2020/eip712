@@ -19,7 +19,7 @@
 #define CHECK2(cond, rc_code)                                                 \
   {                                                                           \
     bool flag = cond;                                                         \
-    if (flag) {                                                               \
+    if (!flag) {                                                               \
       printf("--CHECK2 ERR, code: %d, %s:%d\n", rc_code, __FILE__, __LINE__); \
       return rc_code;                                                         \
     }                                                                         \

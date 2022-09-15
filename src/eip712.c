@@ -115,11 +115,11 @@ typedef enum {
 } EIP712CellType;
 
 int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
-  CHECK2(!cell->capacity, EIP712ERR_GEN_DATA);
-  CHECK2(!cell->lock, EIP712ERR_GEN_DATA);
-  CHECK2(!cell->type, EIP712ERR_GEN_DATA);
-  CHECK2(!cell->data, EIP712ERR_GEN_DATA);
-  CHECK2(!cell->extra_data, EIP712ERR_GEN_DATA);
+  CHECK2(cell->capacity, EIP712ERR_GEN_DATA);
+  CHECK2(cell->lock, EIP712ERR_GEN_DATA);
+  CHECK2(cell->type, EIP712ERR_GEN_DATA);
+  CHECK2(cell->data, EIP712ERR_GEN_DATA);
+  CHECK2(cell->extra_data, EIP712ERR_GEN_DATA);
 
   e_item *e = gen_item_struct(mem, root, NULL, NULL);
   gen_item_string(mem, e, "capacity", cell->capacity);
@@ -133,16 +133,17 @@ int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
 
 int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   ASSERT(data);
-  CHECK2(!data->transaction_das_message, EIP712ERR_GEN_DATA);
-  CHECK2(!data->inputs_capacity, EIP712ERR_GEN_DATA);
-  CHECK2(!data->outputs_capacity, EIP712ERR_GEN_DATA);
-  CHECK2(!data->fee, EIP712ERR_GEN_DATA);
-  CHECK2(!data->digest, EIP712ERR_GEN_DATA);
-  CHECK2(!data->active.action, EIP712ERR_GEN_DATA);
-  CHECK2(!data->active.params, EIP712ERR_GEN_DATA);
+  CHECK2(data->transaction_das_message, EIP712ERR_GEN_DATA);
+  CHECK2(data->inputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(data->outputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(data->fee, EIP712ERR_GEN_DATA);
+  CHECK2(data->digest, EIP712ERR_GEN_DATA);
+  CHECK2(data->active.action, EIP712ERR_GEN_DATA);
+  CHECK2(data->active.params, EIP712ERR_GEN_DATA);
 
-  CHECK2((data->inputs_len > 0 && !data->inputs), EIP712ERR_GEN_DATA);
-  CHECK2((data->outputs_len > 0 && !data->outputs), EIP712ERR_GEN_DATA);
+  // TODO joii
+  CHECK2(!(data->inputs_len > 0 && !data->inputs), EIP712ERR_GEN_DATA);
+  CHECK2(!(data->outputs_len > 0 && !data->outputs), EIP712ERR_GEN_DATA);
 
   e_item *d_message = gen_item_struct(mem, root, "message", NULL);
 
@@ -190,7 +191,7 @@ int get_eip712_hash(const eip712_data *data, uint8_t *out_hash) {
 
   e_item *edata = 0;
   CHECK(gen_eip712_data(&mem, data, &edata));
-  CHECK2(!edata, EIP712ERR_GEN_DATA);
+  CHECK2(edata, EIP712ERR_GEN_DATA);
   // output_item(edata);
 
   CHECK(encode(edata, out_hash));
