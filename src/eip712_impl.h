@@ -1,34 +1,42 @@
 
-#ifndef EIP712_H
-#define EIP712_H
+#ifndef EIP712_IMPL_H
+#define EIP712_IMPL_H
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "stdio.h"
 
-#define CHECK(err)                                                        \
-  {                                                                       \
-    int _err = err;                                                       \
-    if (_err) {                                                           \
-      printf("--CHECK ERR, code: %d, %s:%d\n", _err, __FILE__, __LINE__); \
-      return _err;                                                        \
-    }                                                                     \
+#ifndef EIP712_DBG_PRINT
+// #define EIP712_DBG_PRINT(...) printf(__VA_ARGS__)
+#define EIP712_DBG_PRINT(...)
+#endif  // EIP712_DBG_PRINT
+
+#define CHECK(err)                                                       \
+  {                                                                      \
+    int _err = err;                                                      \
+    if (_err) {                                                          \
+      EIP712_DBG_PRINT("--CHECK ERR, code: %d, %s:%d\n", _err, __FILE__, \
+                       __LINE__);                                        \
+      return _err;                                                       \
+    }                                                                    \
   }
 
-#define CHECK2(cond, rc_code)                                                 \
-  {                                                                           \
-    bool flag = cond;                                                         \
-    if (!flag) {                                                               \
-      printf("--CHECK2 ERR, code: %d, %s:%d\n", rc_code, __FILE__, __LINE__); \
-      return rc_code;                                                         \
-    }                                                                         \
+#define CHECK2(cond, rc_code)                                                \
+  {                                                                          \
+    bool flag = cond;                                                        \
+    if (!flag) {                                                             \
+      EIP712_DBG_PRINT("--CHECK2 ERR, code: %d, %s:%d\n", rc_code, __FILE__, \
+                       __LINE__);                                            \
+      return rc_code;                                                        \
+    }                                                                        \
   }
 
-#define ASSERT(cond)                                 \
-  if (!(cond)) {                                     \
-    printf("--Assert, %s:%d\n", __FILE__, __LINE__); \
-    (void)0;                                         \
+#define ASSERT(cond)                                           \
+  if (!(cond)) {                                               \
+    EIP712_DBG_PRINT("--Assert, %s:%d\n", __FILE__, __LINE__); \
+    (void)0;                                                   \
   }
 
 typedef enum {
@@ -109,9 +117,9 @@ e_item *get_item(e_item *it, const char *name);
 const char *get_item_tostr(e_item *it, const char *name);
 
 // eip712 struct to json string
-void output_item(e_item *it);
+void output_eip712_json(e_item *it, char *output_str, size_t *pos);
 
 // eip712 encode to hash
-int encode(e_item *data, uint8_t *hashRet);
+int encode_impl(e_item *data, uint8_t *hashRet);
 
-#endif
+#endif  // EIP712_IMPL_H

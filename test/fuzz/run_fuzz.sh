@@ -2,8 +2,8 @@ CUR_DIR=$(dirname $(readlink -f "$0"))
 
 cd $CUR_DIR
 
-rm -rf fuzz_eip712
-make
+make clean
+make all
 if (( $? == 0 ))
 then
   echo -e "\033[32mSuccess\033[0m"
@@ -14,4 +14,5 @@ fi
 
 cd $CUR_DIR/build
 
-$CUR_DIR/build/fuzz_eip712 -jobs=30 -max_len=33
+# $CUR_DIR/build/fuzz_eip712 -jobs=30
+$CUR_DIR/build/fuzz_eip712_2 -jobs=30

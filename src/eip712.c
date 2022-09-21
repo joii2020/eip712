@@ -98,6 +98,11 @@ int gen_eip712_data_types(e_mem *mem, e_item *root) {
 int gen_eip712_data_domain(e_mem *mem, e_item *root,
                            const eip712_domain *domain) {
   ASSERT(domain);
+  CHECK2(domain->name, EIP712ERR_GEN_DATA);
+  CHECK2(domain->name[0] != '\0', EIP712ERR_GEN_DATA);
+  CHECK2(domain->version, EIP712ERR_GEN_DATA);
+  CHECK2(domain->version[0] != '\0', EIP712ERR_GEN_DATA);
+
   e_item *d_domain = gen_item_struct(mem, root, "domain", NULL);
 
   gen_item_num(mem, d_domain, "chainId", domain->chain_id,
@@ -116,10 +121,15 @@ typedef enum {
 
 int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
   CHECK2(cell->capacity, EIP712ERR_GEN_DATA);
+  CHECK2(cell->capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->lock, EIP712ERR_GEN_DATA);
+  CHECK2(cell->lock[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->type, EIP712ERR_GEN_DATA);
+  CHECK2(cell->type[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->data, EIP712ERR_GEN_DATA);
+  CHECK2(cell->data[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->extra_data, EIP712ERR_GEN_DATA);
+  CHECK2(cell->extra_data[0] != '\0', EIP712ERR_GEN_DATA);
 
   e_item *e = gen_item_struct(mem, root, NULL, NULL);
   gen_item_string(mem, e, "capacity", cell->capacity);
@@ -134,12 +144,19 @@ int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
 int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   ASSERT(data);
   CHECK2(data->transaction_das_message, EIP712ERR_GEN_DATA);
+  CHECK2(data->transaction_das_message[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->inputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(data->inputs_capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->outputs_capacity, EIP712ERR_GEN_DATA);
+  CHECK2(data->outputs_capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->fee, EIP712ERR_GEN_DATA);
+  CHECK2(data->fee[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->digest, EIP712ERR_GEN_DATA);
+  CHECK2(data->digest[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.action, EIP712ERR_GEN_DATA);
+  CHECK2(data->active.action[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.params, EIP712ERR_GEN_DATA);
+  CHECK2(data->active.params[0] != '\0', EIP712ERR_GEN_DATA);
 
   // TODO joii
   CHECK2(!(data->inputs_len > 0 && !data->inputs), EIP712ERR_GEN_DATA);
@@ -152,6 +169,7 @@ int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   gen_item_string(mem, d_message, "outputsCapacity", data->outputs_capacity);
   gen_item_string(mem, d_message, "fee", data->fee);
 
+  CHECK2(strlen(data->digest) == 66, EIP712ERR_GEN_DATA);
   gen_item_num_by_str(mem, d_message, "digest", data->digest, ETYPE_BYTES32);
 
   e_item *action = gen_item_struct(mem, d_message, "action", NULL);
@@ -192,9 +210,18 @@ int get_eip712_hash(const eip712_data *data, uint8_t *out_hash) {
   e_item *edata = 0;
   CHECK(gen_eip712_data(&mem, data, &edata));
   CHECK2(edata, EIP712ERR_GEN_DATA);
-  // output_item(edata);
 
-  CHECK(encode(edata, out_hash));
+  CHECK(encode_impl(edata, out_hash));
 
   return EIP712_SUC;
+}
+
+void output_json(const eip712_data *data, char *output_json) {
+  uint8_t buffer[1024 * 64] = {0};
+  e_mem mem = eip712_gen_mem(buffer, sizeof(buffer));
+
+  e_item *edata = 0;
+  gen_eip712_data(&mem, data, &edata);
+  size_t pos = 0;
+  output_eip712_json(edata, output_json, &pos);
 }

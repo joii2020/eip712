@@ -28,7 +28,7 @@ typedef enum {
 int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
                struct SHA3_CTX *ctx);
 void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result);
-void dbg_print_mem(const char *name, const uint8_t *buf, size_t len);
+void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len);
 
 const char *G_EIP712_DEFALUT_TYPE[] = {
     "int8",   "int16",   "int32",  "int64",  "int128",  "int256",
@@ -39,6 +39,12 @@ const char *G_EIP712_DEFALUT_TYPE[] = {
 
 ////////////////////////////////////////////////////////////////
 // memory manager
+
+void append_str(char *buf, size_t *pos, const char *s) {
+  size_t str_len = strlen(s);
+  memcpy(buf + *pos, s, str_len);
+  *pos += str_len;
+}
 
 e_mem eip712_gen_mem(uint8_t *buffer, size_t len) {
   e_mem m;
@@ -243,60 +249,7 @@ const char *get_item_tostr(e_item *it, const char *name) {
   return it->value.data_string;
 }
 
-void output_mem_buf(uint8_t *buf, size_t len) {
-  printf("\"0x");
-  for (size_t i = 0; i < len; i++) {
-    printf("%02x", buf[i]);
-  }
-  printf("\"");
-}
-
-// output e_item to json
-void output_item(e_item *it) {
-  printf("{");
-  if (it) {
-    it = it->value.data_struct;
-    while (it) {
-      if (it->key) printf("\"%s\": ", it->key);
-
-      if (it->type == ETYPE_STRING) {
-        printf("\"%s\"", it->value.data_string);
-      } else if (it->type == ETYPE_STRUCT) {
-        printf("\n");
-        output_item(it);
-      } else if (it->type == ETYPE_ARRAY) {
-        printf("[\n");
-        e_item *itt = it->value.data_struct;
-        while (itt) {
-          output_item(itt);
-          if (itt->sibling) printf(",\n");
-          itt = itt->sibling;
-        }
-        printf("]\n");
-      } else if (it->type == ETYPE_UINT256) {
-        output_mem_buf(it->value.data_number, 32);
-      } else if (it->type == ETYPE_BYTES32) {
-        output_mem_buf(it->value.data_number, 32);
-      } else if (it->type == ETYPE_ADDRESS) {
-        output_mem_buf(it->value.data_bytes.data, it->value.data_bytes.len);
-      } else {
-        // printf("-----------");
-      }
-      if (it->sibling) printf(",\n");
-      it = it->sibling;
-    }
-  }
-  printf("}\n");
-}
-
 ////////////////////////////////////////////////////////////////S
-
-size_t append_str(char *buf, size_t pos, const char *s) {
-  size_t str_len = strlen(s);
-  memcpy(buf + pos, s, str_len);
-  return pos + str_len;
-}
-#define APPEND_STR(data) pos = append_str(type_str, pos, data)
 
 bool is_array(const char *s1) {
   size_t len = strlen(s1);
@@ -359,6 +312,7 @@ bool type_deps_list_has(eip712_type_deps_item *begin, const char *type_name) {
   return false;
 }
 
+#define APPEND_STR(data) append_str(output_str, &pos, data)
 int parse_type(e_item *types, const char *type_name, char *type_str,
                size_t *readed_pos) {
   CHECK2(types->type == ETYPE_STRUCT, EIP712ERR_ENCODE_TYPE);
@@ -367,6 +321,8 @@ int parse_type(e_item *types, const char *type_name, char *type_str,
   CHECK2(it || it->type != ETYPE_ARRAY, EIP712ERR_ENCODE_TYPE);
 
   size_t pos = 0;
+
+  char *output_str = type_str;
 
   APPEND_STR(it->key);
   APPEND_STR("(");
@@ -445,6 +401,7 @@ int parse_type(e_item *types, const char *type_name, char *type_str,
   *readed_pos = pos;
   return EIP712_SUC;
 }
+#undef APPEND_STR
 
 int encode_address(e_item *it, uint8_t *encoded) {
   CHECK2(it->type == ETYPE_ADDRESS, EIP712ERR_ENCODE_ADDRESS);
@@ -563,7 +520,7 @@ int get_type_hash(e_item *types, const char *type, uint8_t *encoded) {
   } else {
     CHECK(parse_type(types, type, enc_sub_type_str, &out_str_len));
   }
-  printf("------parse struct , type encode: %s\n", enc_sub_type_str);
+  EIP712_DBG_PRINT("------parse struct , type encode: %s\n", enc_sub_type_str);
 
   keccak_256((const uint8_t *)enc_sub_type_str, out_str_len, encoded);
   return EIP712_SUC;
@@ -586,7 +543,8 @@ int parse_struct(e_item *val, e_item *types, const char *type,
       struct SHA3_CTX val_ctx = {0};
       keccak_init(&val_ctx);
       keccak_update(&val_ctx, struct_hash, EIP712_HASH_SIZE);
-      dbg_print_mem("------update struct hash1", struct_hash, EIP712_HASH_SIZE);
+      EIP712_DBG_PRINT_mem("------update struct hash1", struct_hash,
+                           EIP712_HASH_SIZE);
 
       e_item *type_info = get_item(types, real_type);
       CHECK2(type_info, EIP712ERR_ENCODE_STRUCT);
@@ -596,7 +554,8 @@ int parse_struct(e_item *val, e_item *types, const char *type,
 
       // CHECK(encode_struct(it, types, real_type, encoded));
       keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
-      dbg_print_mem("------update struct hash2", encoded, EIP712_HASH_SIZE);
+      EIP712_DBG_PRINT_mem("------update struct hash2", encoded,
+                           EIP712_HASH_SIZE);
       it = it->sibling;
     }
 
@@ -635,8 +594,8 @@ int parse_val(e_item *val, e_item *types, const char *type,
   }
 
   keccak_update(ctx, (unsigned char *)encoded, sizeof(encoded));
-  printf("----type: %s\n", type);
-  dbg_print_mem("----update-hash", encoded, EIP712_HASH_SIZE);
+  EIP712_DBG_PRINT("----type: %s\n", type);
+  EIP712_DBG_PRINT_mem("----update-hash", encoded, EIP712_HASH_SIZE);
 
   return EIP712_SUC;
 }
@@ -695,7 +654,7 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   struct SHA3_CTX keccak_ctx = {0};
   keccak_init(&keccak_ctx);
   keccak_update(&keccak_ctx, (unsigned char *)type_hash, sizeof(type_hash));
-  dbg_print_mem("----update-hash1", type_hash, sizeof(type_hash));
+  EIP712_DBG_PRINT_mem("----update-hash1", type_hash, sizeof(type_hash));
 
   e_item *type_info = get_item(types, type_name);
   CHECK2((type_info && type_info->type == ETYPE_ARRAY),
@@ -708,23 +667,21 @@ int encode_item(e_item *data, EIP712MessageType msg_type, uint8_t *hash_ret) {
   return EIP712_SUC;
 }
 
-int encode(e_item *data, uint8_t *hash_ret) {
+int encode_impl(e_item *data, uint8_t *hash_ret) {
   uint8_t hash_buffer[2 + EIP712_HASH_SIZE + EIP712_HASH_SIZE] = {0x19, 0x01,
                                                                   0};
 
   CHECK(encode_item(data, EIP712_DOMAIN, hash_buffer + 2));
-  dbg_print_mem("--domain data hash", hash_buffer + 2, EIP712_HASH_SIZE);
+  EIP712_DBG_PRINT_mem("--domain data hash", hash_buffer + 2, EIP712_HASH_SIZE);
   CHECK(encode_item(data, EIP712_MESSAGE, hash_buffer + 2 + EIP712_HASH_SIZE));
-  dbg_print_mem("--message data hash", hash_buffer + 2 + EIP712_HASH_SIZE,
-                EIP712_HASH_SIZE);
+  EIP712_DBG_PRINT_mem("--message data hash",
+                       hash_buffer + 2 + EIP712_HASH_SIZE, EIP712_HASH_SIZE);
 
   keccak_256(hash_buffer, sizeof(hash_buffer), hash_ret);
 
-  dbg_print_mem("--befor data hash", hash_ret, EIP712_HASH_SIZE);
+  EIP712_DBG_PRINT_mem("--befor data hash", hash_ret, EIP712_HASH_SIZE);
   return EIP712_SUC;
 }
-
-#undef APPEND_STR
 
 ////////////////////////////////////////////////////////////////
 // debug
@@ -742,23 +699,83 @@ void uint8_to_hex(uint8_t d, char *out) {
   out[1] = i_to_str(d & 0xF);
 }
 
-void dbg_print_mem(const char *name, const uint8_t *buf, size_t len) {
+void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len) {
   char output_buf[1024 * 4] = {0};
   size_t buf_pos = 0;
 
-  buf_pos = append_str(output_buf, buf_pos, name);
-  buf_pos = append_str(output_buf, buf_pos, ":\n");
+  append_str(output_buf, &buf_pos, name);
+  append_str(output_buf, &buf_pos, ":\n");
 
   for (size_t i = 0; i < len; i++) {
-    buf_pos = append_str(output_buf, buf_pos, "0x");
+    append_str(output_buf, &buf_pos, "0x");
     uint8_to_hex(buf[i], output_buf + buf_pos);
     buf_pos += 2;
-    buf_pos = append_str(output_buf, buf_pos, ", ");
+    append_str(output_buf, &buf_pos, ", ");
 
     if (i % 16 == 15) {
-      buf_pos = append_str(output_buf, buf_pos, "\n");
+      append_str(output_buf, &buf_pos, "\n");
     }
   }
 
-  printf("%s", output_buf);
+  EIP712_DBG_PRINT("%s", output_buf);
 }
+
+#define APPEND_STR(data) append_str(output_str, pos, data)
+
+void output_mem_buf(uint8_t *buf, size_t len, char *output_str, size_t *pos) {
+  APPEND_STR("0x");
+  for (size_t i = 0; i < len; i++) {
+    uint8_to_hex(buf[i], output_str + *pos);
+    *pos += 2;
+  }
+}
+
+// output e_item to json
+void output_eip712_json(e_item *it, char *output_str, size_t *pos) {
+  APPEND_STR("{");
+  if (it) {
+    it = it->value.data_struct;
+    while (it) {
+      if (it->key) {
+        APPEND_STR("\"");
+        APPEND_STR(it->key);
+        APPEND_STR("\":");
+      }
+
+      if (it->type == ETYPE_STRING) {
+        APPEND_STR("\"");
+        APPEND_STR(it->value.data_string);
+        APPEND_STR("\"");
+      } else if (it->type == ETYPE_STRUCT) {
+        output_eip712_json(it, output_str, pos);
+      } else if (it->type == ETYPE_ARRAY) {
+        APPEND_STR("[");
+        e_item *itt = it->value.data_struct;
+        while (itt) {
+          output_eip712_json(itt, output_str, pos);
+          if (itt->sibling) APPEND_STR(",");
+          itt = itt->sibling;
+        }
+        APPEND_STR("]");
+      } else if (it->type == ETYPE_UINT256) {
+        APPEND_STR("\"");
+        output_mem_buf(it->value.data_number, 32, output_str, pos);
+        APPEND_STR("\"");
+      } else if (it->type == ETYPE_BYTES32) {
+        APPEND_STR("\"");
+        output_mem_buf(it->value.data_number, 32, output_str, pos);
+        APPEND_STR("\"");
+      } else if (it->type == ETYPE_ADDRESS) {
+        APPEND_STR("\"");
+        output_mem_buf(it->value.data_bytes.data, it->value.data_bytes.len,
+                       output_str, pos);
+        APPEND_STR("\"");
+      }
+      if (it->sibling) APPEND_STR(",");
+      it = it->sibling;
+    }
+  }
+  APPEND_STR("}");
+  EIP712_DBG_PRINT("%s", output_str);
+}
+#undef APPEND_STR
