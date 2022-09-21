@@ -169,8 +169,7 @@ int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   gen_item_string(mem, d_message, "outputsCapacity", data->outputs_capacity);
   gen_item_string(mem, d_message, "fee", data->fee);
 
-  CHECK2(strlen(data->digest) == 66, EIP712ERR_GEN_DATA);
-  gen_item_num_by_str(mem, d_message, "digest", data->digest, ETYPE_BYTES32);
+  gen_item_num(mem, d_message, "digest", data->digest, EIP712_HASH_SIZE, ETYPE_BYTES32);
 
   e_item *action = gen_item_struct(mem, d_message, "action", NULL);
   gen_item_string(mem, action, "action", data->active.action);

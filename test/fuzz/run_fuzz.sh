@@ -12,7 +12,7 @@ else
   exit 2
 fi
 
-cd $CUR_DIR/build
+cd $CUR_DIR
 
-# $CUR_DIR/build/fuzz_eip712 -jobs=30
-$CUR_DIR/build/fuzz_eip712_2 -jobs=30
+$CUR_DIR/build/fuzz_eip712 -jobs=4
+# $CUR_DIR/build/fuzz_eip712_2

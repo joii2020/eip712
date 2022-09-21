@@ -21,8 +21,12 @@ int example1() {
   data.inputs_capacity = "551.39280335 CKB";
   data.outputs_capacity = "551.39270335 CKB";
   data.fee = "0.0001 CKB";
-  data.digest =
-      "0xa71c9bf1cb1686b35a6c2ee4593202bc13279aae96e6ea274d919444f1e3749f";
+
+  uint8_t digest_data[32] = {0xa7, 0x1c, 0x9b, 0xf1, 0xcb, 0x16, 0x86, 0xb3,
+                             0x5a, 0x6c, 0x2e, 0xe4, 0x59, 0x32, 0x02, 0xbc,
+                             0x13, 0x27, 0x9a, 0xae, 0x96, 0xe6, 0xea, 0x27,
+                             0x4d, 0x91, 0x94, 0x44, 0xf1, 0xe3, 0x74, 0x9f};
+  memcpy(data.digest, digest_data, 32);
 
   data.transaction_das_message =
       "TRANSFER FROM 0x9176acd39a3a9ae99dcb3922757f8af4f94cdf3c(551.39280335 "
@@ -60,8 +64,12 @@ int example2() {
   data.inputs_capacity = "551.39280335 CKB";
   data.outputs_capacity = "551.39270335 CKB";
   data.fee = "0.0001 CKB";
-  data.digest =
-      "0xa71c9bf1cb1686b35a6c2ee4593202bc13279aae96e6ea274d919444f1e3749f";
+
+  uint8_t digest_data[32] = {0xa7, 0x1c, 0x9b, 0xf1, 0xcb, 0x16, 0x86, 0xb3,
+                             0x5a, 0x6c, 0x2e, 0xe4, 0x59, 0x32, 0x02, 0xbc,
+                             0x13, 0x27, 0x9a, 0xae, 0x96, 0xe6, 0xea, 0x27,
+                             0x4d, 0x91, 0x94, 0x44, 0xf1, 0xe3, 0x74, 0x9f};
+  memcpy(data.digest, digest_data, 32);
 
   data.transaction_das_message =
       "TRANSFER FROM 0x9176acd39a3a9ae99dcb3922757f8af4f94cdf3c(551.39280335 "

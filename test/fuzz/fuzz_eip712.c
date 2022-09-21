@@ -15,7 +15,7 @@ typedef struct _fuzz_eip712_data {
   uint16_t inputs_capacity_str_len;
   uint16_t outputs_capacity_str_len;
   uint16_t fee_str_len;
-  uint16_t digest_str_len;
+  uint8_t digest[32];
 
   uint16_t inputs_len;
   uint16_t outputs_len;
@@ -102,7 +102,7 @@ void gen_fuzz_eip712_data(e_mem *mem, eip712_data *data, uint8_t *random_buf,
   data->outputs_capacity =
       gen_fuzz_string(mem, temp_data.outputs_capacity_str_len);
   data->fee = gen_fuzz_string(mem, temp_data.fee_str_len);
-  data->digest = gen_fuzz_string(mem, temp_data.digest_str_len);
+  memcpy(data->digest, temp_data.digest, 32);
 
   // gen cell
   random_buf = random_buf + temp_data_len;

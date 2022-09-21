@@ -103,8 +103,8 @@ void gen_fuzz_eip712_data(e_mem *mem, eip712_data *data, uint8_t *random_buf,
   data->outputs_capacity =
       gen_fuzz_string(mem, temp_data.outputs_capacity_str_len);
   data->fee = gen_fuzz_string(mem, temp_data.fee_str_len);
-  data->digest =
-      gen_str_from_bytes(mem, temp_data.digest, sizeof(temp_data.digest));
+
+  memcpy(data->digest, temp_data.digest, 32);
 
   // gen cell
   random_buf = random_buf + temp_data_len;
@@ -151,6 +151,18 @@ void base64_encode(const unsigned char *data, size_t input_length,
     output_buf[output_length - 1 - i] = '=';
 }
 
+char G_COMPARED_EXEC_PATH[1024] = {0};
+char *get_compared_exec_path() {
+  if (G_COMPARED_EXEC_PATH[0] != '\0') {
+    return G_COMPARED_EXEC_PATH;
+  }
+  getcwd(G_COMPARED_EXEC_PATH, sizeof(G_COMPARED_EXEC_PATH));
+  strcpy(&G_COMPARED_EXEC_PATH[strlen(G_COMPARED_EXEC_PATH)],
+         "/../../tools/nodejs_test/compared_fuzzer.js");
+  printf("%s\n", G_COMPARED_EXEC_PATH);
+  return G_COMPARED_EXEC_PATH;
+}
+
 char G_OUTPUT_STR[1024 * 1024] = {0};
 char G_OUTPUT_STR_BASE64[sizeof(G_OUTPUT_STR) * 2] = {0};
 char G_CHECK_CMD[sizeof(G_OUTPUT_STR) * 3] = {0};
@@ -169,10 +181,8 @@ void check_eip712tool_hash(const eip712_data *data, uint8_t *ret_hash) {
   output_mem_buf(ret_hash, EIP712_HASH_SIZE, hash_str, &pos);
 
   memset(G_CHECK_CMD, 0, sizeof(G_CHECK_CMD));
-  const char *check_cmd_path =
-      "/home/joii/code/eip712/test/fuzz/build/fuzz_eip712_compared";
-  strcpy(G_CHECK_CMD, check_cmd_path);
-  pos = strlen(check_cmd_path);
+  strcpy(G_CHECK_CMD, get_compared_exec_path());
+  pos = strlen(G_CHECK_CMD);
 
   G_CHECK_CMD[pos] = ' ';
   pos++;

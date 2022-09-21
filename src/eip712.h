@@ -34,7 +34,7 @@ typedef struct _eip712_data {
   char* inputs_capacity;
   char* outputs_capacity;
   char* fee;
-  char* digest;
+  uint8_t digest[32];
 
   eip712_cell* inputs;
   size_t inputs_len;
