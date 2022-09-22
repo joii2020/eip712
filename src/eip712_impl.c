@@ -133,6 +133,7 @@ int hex_to_int(char c) {
     return c - '0';
   }
 
+  // Only used in bytes, and only needs to get decimal data
   if (c >= 'A' && c <= 'F') {
     return c - 'A' + 0xa;
   }
@@ -592,14 +593,6 @@ int parse_val(e_item *val, e_item *types, const char *type,
   EIP712_DBG_PRINT_mem("----update-hash", encoded, EIP712_HASH_SIZE);
 
   return EIP712_SUC;
-}
-
-e_item *get_types_from_msg(e_item *types, e_item *val) {
-  if (strcmp("domain", val->key) == 0) {
-    return get_item(types, "EIP712Domain");
-  }
-
-  return get_item(types, val->key);
 }
 
 int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,

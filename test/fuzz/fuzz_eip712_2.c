@@ -71,12 +71,12 @@ eip712_cell *gen_fuzz_eip712_cell(e_mem *mem, eip712_data *data,
   return cells;
 }
 
-char *gen_str_from_bytes(e_mem *mem, uint8_t *buf, size_t size) {
-  char *out_buf = eip712_alloc(mem, size * 2 + 2 + 1);
-  size_t pos = 0;
-  output_mem_buf(buf, size, out_buf, &pos);
-  return out_buf;
-}
+// char *gen_str_from_bytes(e_mem *mem, uint8_t *buf, size_t size) {
+//   char *out_buf = eip712_alloc(mem, size * 2 + 2 + 1);
+//   size_t pos = 0;
+//   output_mem_buf(buf, size, out_buf, &pos);
+//   return out_buf;
+// }
 
 void gen_fuzz_eip712_data(e_mem *mem, eip712_data *data, uint8_t *random_buf,
                           size_t random_len) {
@@ -111,7 +111,7 @@ void gen_fuzz_eip712_data(e_mem *mem, eip712_data *data, uint8_t *random_buf,
   random_len = random_len - temp_data_len;
   temp_data.inputs_len = temp_data.inputs_len % MAX_FUZZ_CELLS_SIZE;
   temp_data.outputs_len = temp_data.outputs_len % MAX_FUZZ_CELLS_SIZE;
-  data->inputs_len = temp_data.inputs_len;
+  data->outputs_len = temp_data.inputs_len;
   data->outputs_len = temp_data.outputs_len;
 
   data->inputs = gen_fuzz_eip712_cell(mem, data, temp_data.inputs_len,
