@@ -152,28 +152,28 @@ uint64_t str_to_int(const char *c) {
   return res;
 }
 
-size_t hex_to_bytes(const char *d, uint8_t *out) {
-  // TODO
+// size_t hex_to_bytes(const char *d, uint8_t *out) {
+//   // TODO
 
-  size_t count = 0;
-  for (size_t i = 2; d[i] != '\0'; i += 2) {
-    out[count] = (uint8_t)((hex_to_int(d[i]) << 4) + hex_to_int(d[i + 1]));
-    count += 1;
-  }
+//   size_t count = 0;
+//   for (size_t i = 2; d[i] != '\0'; i += 2) {
+//     out[count] = (uint8_t)((hex_to_int(d[i]) << 4) + hex_to_int(d[i + 1]));
+//     count += 1;
+//   }
 
-  return count;
-}
+//   return count;
+// }
 
-e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
-                            const char *val, e_type type) {
-  size_t buf_len = strlen(val) / 2 - 1;
-  uint8_t *buf = eip712_alloc(mem, buf_len);
+// e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
+//                             const char *val, e_type type) {
+//   size_t buf_len = strlen(val) / 2 - 1;
+//   uint8_t *buf = eip712_alloc(mem, buf_len);
 
-  size_t out_len = hex_to_bytes(val, buf);
-  ASSERT(out_len == buf_len);
+//   size_t out_len = hex_to_bytes(val, buf);
+//   ASSERT(out_len == buf_len);
 
-  return gen_item_mem(mem, parent, key, buf, buf_len, type);
-}
+//   return gen_item_mem(mem, parent, key, buf, buf_len, type);
+// }
 
 e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
                      const uint8_t *val, size_t val_size, e_type type) {
@@ -203,21 +203,21 @@ e_item *gen_item_num(e_mem *mem, e_item *parent, const char *key,
   return it;
 }
 
-e_item *gen_item_num_by_str(e_mem *mem, e_item *parent, const char *key,
-                            const char *val, e_type type) {
-  e_item *it = eip712_alloc(mem, sizeof(e_item));
-  it->key = eip712_alloc_memstr(mem, key);
-  it->type = type;
+// e_item *gen_item_num_by_str(e_mem *mem, e_item *parent, const char *key,
+//                             const char *val, e_type type) {
+//   e_item *it = eip712_alloc(mem, sizeof(e_item));
+//   it->key = eip712_alloc_memstr(mem, key);
+//   it->type = type;
 
-  uint8_t buf[EIP712_HASH_SIZE] = {0};
-  size_t out_len = hex_to_bytes(val, buf);
-  ASSERT(out_len);
-  it->value.data_number = (uint8_t *)eip712_alloc(mem, EIP712_HASH_SIZE);
-  memcpy(it->value.data_number + EIP712_HASH_SIZE - out_len, buf, out_len);
+//   uint8_t buf[EIP712_HASH_SIZE] = {0};
+//   size_t out_len = hex_to_bytes(val, buf);
+//   ASSERT(out_len);
+//   it->value.data_number = (uint8_t *)eip712_alloc(mem, EIP712_HASH_SIZE);
+//   memcpy(it->value.data_number + EIP712_HASH_SIZE - out_len, buf, out_len);
 
-  append_item(parent, it);
-  return it;
-}
+//   append_item(parent, it);
+//   return it;
+// }
 
 e_item *gen_item_array(e_mem *mem, e_item *parent, const char *key) {
   e_item *it = eip712_alloc(mem, sizeof(e_item));
@@ -415,18 +415,21 @@ int encode_address(e_item *it, uint8_t *encoded) {
 
 int parse_address(e_item *val, const char *type, uint8_t *encoded) {
   if (is_array(type)) {
-    CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_ADDRESS);
+    //  NOTE: The current demand will never be executed here
+    ASSERT(false);
+    return EIP712ERR_ENCODE_UNKNOW;
+    // CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_ADDRESS);
 
-    e_item *it = val->value.data_struct;
+    // e_item *it = val->value.data_struct;
 
-    struct SHA3_CTX ctx;
-    keccak_init(&ctx);
-    while (it) {
-      CHECK(encode_address(it, encoded));
-      keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
-      it = it->sibling;
-    }
-    keccak_final(&ctx, encoded);
+    // struct SHA3_CTX ctx;
+    // keccak_init(&ctx);
+    // while (it) {
+    //   CHECK(encode_address(it, encoded));
+    //   keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
+    //   it = it->sibling;
+    // }
+    // keccak_final(&ctx, encoded);
   } else {
     encode_address(val, encoded);
   }
@@ -443,17 +446,20 @@ int encode_string(e_item *it, uint8_t *encoded) {
 
 int parse_string(e_item *val, const char *type, uint8_t *encoded) {
   if (is_array(type)) {
-    CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_STRING);
+    //  NOTE: The current demand will never be executed here
+    ASSERT(false);
+    return EIP712ERR_ENCODE_UNKNOW;
+    // CHECK2(val->type == ETYPE_ARRAY, EIP712ERR_ENCODE_STRING);
 
-    e_item *it = val->value.data_struct;
-    struct SHA3_CTX ctx;
-    keccak_init(&ctx);
-    while (it) {
-      CHECK(encode_string(it, encoded));
-      keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
-      it = it->sibling;
-    }
-    keccak_final(&ctx, encoded);
+    // e_item *it = val->value.data_struct;
+    // struct SHA3_CTX ctx;
+    // keccak_init(&ctx);
+    // while (it) {
+    //   CHECK(encode_string(it, encoded));
+    //   keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
+    //   it = it->sibling;
+    // }
+    // keccak_final(&ctx, encoded);
   } else {
     encode_string(val, encoded);
   }
@@ -486,28 +492,17 @@ int parse_bytes(e_item *val, const char *type, uint8_t *encoded) {
 }
 
 int parse_bool(e_item *val, const char *type, uint8_t *encoded) {
-  CHECK2(val->type != ETYPE_BOOL, EIP712ERR_ENCODE_BOOL);
-  CHECK2(is_array(type), EIP712ERR_ENCODE_BOOL);
+  //  NOTE: The current demand will never be executed here
+  ASSERT(false);
+  return EIP712ERR_ENCODE_UNKNOW;
+  // CHECK2(val->type != ETYPE_BOOL, EIP712ERR_ENCODE_BOOL);
+  // CHECK2(is_array(type), EIP712ERR_ENCODE_BOOL);
 
-  if (val->value.data_bool) {
-    encoded[31] = 0x1;
-  }
+  // if (val->value.data_bool) {
+  //   encoded[31] = 0x1;
+  // }
 
-  return EIP712_SUC;
-}
-
-int encode_struct(e_item *val, e_item *types, const char *type,
-                  uint8_t *encoded) {
-  struct SHA3_CTX val_ctx = {0};
-  keccak_init(&val_ctx);
-  keccak_update(&val_ctx, encoded, EIP712_HASH_SIZE);
-  e_item *type_info = get_item(types, type);
-  CHECK2(!type_info, EIP712ERR_ENCODE_STRUCT);
-
-  parse_vals(type_info, val, types, &val_ctx);
-
-  keccak_final(&val_ctx, encoded);
-  return EIP712_SUC;
+  // return EIP712_SUC;
 }
 
 int get_type_hash(e_item *types, const char *type, uint8_t *encoded) {
@@ -552,7 +547,6 @@ int parse_struct(e_item *val, e_item *types, const char *type,
 
       keccak_final(&val_ctx, encoded);
 
-      // CHECK(encode_struct(it, types, real_type, encoded));
       keccak_update(&ctx, encoded, EIP712_HASH_SIZE);
       EIP712_DBG_PRINT_mem("------update struct hash2", encoded,
                            EIP712_HASH_SIZE);
