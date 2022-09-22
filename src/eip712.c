@@ -151,8 +151,6 @@ int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   CHECK2(data->outputs_capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->fee, EIP712ERR_GEN_DATA);
   CHECK2(data->fee[0] != '\0', EIP712ERR_GEN_DATA);
-  CHECK2(data->digest, EIP712ERR_GEN_DATA);
-  CHECK2(data->digest[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.action, EIP712ERR_GEN_DATA);
   CHECK2(data->active.action[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.params, EIP712ERR_GEN_DATA);
@@ -169,7 +167,8 @@ int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   gen_item_string(mem, d_message, "outputsCapacity", data->outputs_capacity);
   gen_item_string(mem, d_message, "fee", data->fee);
 
-  gen_item_num(mem, d_message, "digest", data->digest, EIP712_HASH_SIZE, ETYPE_BYTES32);
+  gen_item_num(mem, d_message, "digest", data->digest, EIP712_HASH_SIZE,
+               ETYPE_BYTES32);
 
   e_item *action = gen_item_struct(mem, d_message, "action", NULL);
   gen_item_string(mem, action, "action", data->active.action);
@@ -220,7 +219,7 @@ void output_json(const eip712_data *data, char *output_json) {
   e_mem mem = eip712_gen_mem(buffer, sizeof(buffer));
 
   e_item *edata = 0;
-  gen_eip712_data(&mem, data, &edata);
+  ASSERT(gen_eip712_data(&mem, data, &edata) == EIP712_SUC);
   size_t pos = 0;
   output_eip712_json(edata, output_json, &pos);
 }

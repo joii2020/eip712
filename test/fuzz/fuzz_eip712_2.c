@@ -159,7 +159,7 @@ char *get_compared_exec_path() {
   getcwd(G_COMPARED_EXEC_PATH, sizeof(G_COMPARED_EXEC_PATH));
   strcpy(&G_COMPARED_EXEC_PATH[strlen(G_COMPARED_EXEC_PATH)],
          "/../../tools/nodejs_test/compared_fuzzer.js");
-  printf("%s\n", G_COMPARED_EXEC_PATH);
+  // printf("%s\n", G_COMPARED_EXEC_PATH);
   return G_COMPARED_EXEC_PATH;
 }
 

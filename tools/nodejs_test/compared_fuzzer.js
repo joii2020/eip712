@@ -3,7 +3,7 @@
 const keccak256 = require('keccak256');
 const eip712 = require('eip-712');
 
-
+// console.log(Buffer.from(process.argv[2], "base64").toString());
 eip712_data = JSON.parse(Buffer.from(process.argv[2], "base64").toString());
 
 let domain_hash = eip712.getStructHash(eip712_data, "EIP712Domain", eip712_data.domain);
