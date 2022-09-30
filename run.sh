@@ -1,5 +1,6 @@
 make clean
 # make all
+mkdir -p build
 make all-via-docker
 if (( $? == 0 ))
 then
