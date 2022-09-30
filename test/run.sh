@@ -1,5 +1,6 @@
 make clean
-make
+# make
+make all-via-docker
 if (( $? == 0 ))
 then
   echo -e "\033[32mSuccess\033[0m"
