@@ -24,7 +24,7 @@ BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d
 all: test
 
 all-via-docker:
-	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make"
+	docker run --rm -v `pwd`/../:/code ${BUILDER_DOCKER} bash -c "cd /code/test && make"
 
 clean: FORCE
 	rm -rf build/*
