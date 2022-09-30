@@ -8,8 +8,11 @@
 
 #include "stdio.h"
 
-#ifndef EIP712_DBG_PRINT
-// #define EIP712_DBG_PRINT(...) printf(__VA_ARGS__)
+// #define EIP712DBG
+
+#ifdef EIP712DBG
+#define EIP712_DBG_PRINT(...) printf(__VA_ARGS__)
+#else
 #define EIP712_DBG_PRINT(...)
 #endif  // EIP712_DBG_PRINT
 

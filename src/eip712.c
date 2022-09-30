@@ -99,9 +99,7 @@ int gen_eip712_data_domain(e_mem *mem, e_item *root,
                            const eip712_domain *domain) {
   ASSERT(domain);
   CHECK2(domain->name, EIP712ERR_GEN_DATA);
-  CHECK2(domain->name[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(domain->version, EIP712ERR_GEN_DATA);
-  CHECK2(domain->version[0] != '\0', EIP712ERR_GEN_DATA);
 
   e_item *d_domain = gen_item_struct(mem, root, "domain", NULL);
 
@@ -120,16 +118,12 @@ typedef enum {
 } EIP712CellType;
 
 int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
+  CHECK2(cell, EIP712ERR_GEN_DATA);
   CHECK2(cell->capacity, EIP712ERR_GEN_DATA);
-  CHECK2(cell->capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->lock, EIP712ERR_GEN_DATA);
-  CHECK2(cell->lock[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->type, EIP712ERR_GEN_DATA);
-  CHECK2(cell->type[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->data, EIP712ERR_GEN_DATA);
-  CHECK2(cell->data[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(cell->extra_data, EIP712ERR_GEN_DATA);
-  CHECK2(cell->extra_data[0] != '\0', EIP712ERR_GEN_DATA);
 
   e_item *e = gen_item_struct(mem, root, NULL, NULL);
   gen_item_string(mem, e, "capacity", cell->capacity);
@@ -141,24 +135,29 @@ int gen_eip712_cell(e_mem *mem, e_item *root, const eip712_cell *cell) {
   return EIP712_SUC;
 }
 
+int check_cells(eip712_cell *cells, size_t len) {
+  CHECK2(!(len > 0 && !cells), EIP712ERR_GEN_DATA);
+  for (size_t i = 0; i < len; i++) {
+    CHECK2(cells[i].capacity, EIP712ERR_GEN_DATA);
+    CHECK2(cells[i].lock, EIP712ERR_GEN_DATA);
+    CHECK2(cells[i].type, EIP712ERR_GEN_DATA);
+    CHECK2(cells[i].data, EIP712ERR_GEN_DATA);
+    CHECK2(cells[i].extra_data, EIP712ERR_GEN_DATA);
+  }
+  return EIP712_SUC;
+}
+
 int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
   ASSERT(data);
   CHECK2(data->transaction_das_message, EIP712ERR_GEN_DATA);
-  CHECK2(data->transaction_das_message[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->inputs_capacity, EIP712ERR_GEN_DATA);
-  CHECK2(data->inputs_capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->outputs_capacity, EIP712ERR_GEN_DATA);
-  CHECK2(data->outputs_capacity[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->fee, EIP712ERR_GEN_DATA);
-  CHECK2(data->fee[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.action, EIP712ERR_GEN_DATA);
-  CHECK2(data->active.action[0] != '\0', EIP712ERR_GEN_DATA);
   CHECK2(data->active.params, EIP712ERR_GEN_DATA);
-  CHECK2(data->active.params[0] != '\0', EIP712ERR_GEN_DATA);
 
-  // TODO joii
-  CHECK2(!(data->inputs_len > 0 && !data->inputs), EIP712ERR_GEN_DATA);
-  CHECK2(!(data->outputs_len > 0 && !data->outputs), EIP712ERR_GEN_DATA);
+  CHECK(check_cells(data->inputs, data->inputs_len));
+  CHECK(check_cells(data->outputs, data->outputs_len));
 
   e_item *d_message = gen_item_struct(mem, root, "message", NULL);
 
@@ -176,12 +175,12 @@ int gen_eip712_data_message(e_mem *mem, e_item *root, const eip712_data *data) {
 
   e_item *inputs = gen_item_array(mem, d_message, "inputs");
   for (size_t i = 0; i < data->inputs_len; i++) {
-    gen_eip712_cell(mem, inputs, &(data->inputs[i]));
+    CHECK(gen_eip712_cell(mem, inputs, &(data->inputs[i])));
   }
 
   e_item *outputs = gen_item_array(mem, d_message, "outputs");
   for (size_t i = 0; i < data->outputs_len; i++) {
-    gen_eip712_cell(mem, outputs, &(data->outputs[i]));
+    CHECK(gen_eip712_cell(mem, outputs, &(data->outputs[i])));
   }
 
   return EIP712_SUC;

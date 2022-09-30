@@ -1,8 +1,6 @@
 #include <string.h>
 
-#include "ckb_syscalls.h"
 #include "eip712.c"
-// #include "eip712_impl.h"
 
 int example1() {
   uint8_t hash[EIP712_HASH_SIZE] = {0};

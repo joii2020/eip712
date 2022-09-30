@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "ckb_keccak256.h"
-// #include "deps/ckb-c-stdlib/ckb_keccak256.h"
+#include "deps/ckb-c-stdlib/ckb_keccak256.h"
 #include "eip712.h"
 
 ////////////////////////////////////////////////////////////////
@@ -30,13 +29,6 @@ int parse_vals(e_item *type_info, e_item *data_msg, e_item *types,
 void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result);
 void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len);
 
-const char *G_EIP712_DEFALUT_TYPE[] = {
-    "int8",   "int16",   "int32",  "int64",  "int128",  "int256",
-    "uint8",  "uint16",  "uint32", "uint64", "uint128", "uint256",
-    "bytes1", "bytes2",  "bytes4", "bytes8", "bytes16", "bytes32",
-    "bool",   "address", "string", "bytes",
-};
-
 ////////////////////////////////////////////////////////////////
 // memory manager
 
@@ -58,7 +50,7 @@ void *eip712_alloc(e_mem *mem, size_t len) {
   if (len % MEMORY_ALIGNMENT_SIZE != 0) {
     len = (len / MEMORY_ALIGNMENT_SIZE + 1) * MEMORY_ALIGNMENT_SIZE;
   }
-  if (mem->buffer_len < len + mem->pos) {
+  if (mem->buffer_len <= len + mem->pos) {
     ASSERT(false);
     return 0;
   }
@@ -128,7 +120,9 @@ e_item *gen_item_string(e_mem *mem, e_item *parent, const char *key,
   return it;
 }
 
-int hex_to_int(char c) {
+int hex_to_int(char c, bool *suc) {
+  *suc = true;
+
   if (c >= '0' && c <= '9') {
     return c - '0';
   }
@@ -142,39 +136,21 @@ int hex_to_int(char c) {
   }
 
   ASSERT(false);
+  *suc = false;
   return 0;
 }
 
 uint64_t str_to_int(const char *c) {
   uint64_t res = 0;
+  bool suc = true;
   for (size_t i = 0; c[i] != 0; i++) {
-    res = res * 10 + hex_to_int(c[i]);
+    res = res * 10 + hex_to_int(c[i], &suc);
+    if (!suc) {
+      return 0;
+    }
   }
   return res;
 }
-
-// size_t hex_to_bytes(const char *d, uint8_t *out) {
-//   // TODO
-
-//   size_t count = 0;
-//   for (size_t i = 2; d[i] != '\0'; i += 2) {
-//     out[count] = (uint8_t)((hex_to_int(d[i]) << 4) + hex_to_int(d[i + 1]));
-//     count += 1;
-//   }
-
-//   return count;
-// }
-
-// e_item *gen_item_mem_by_str(e_mem *mem, e_item *parent, const char *key,
-//                             const char *val, e_type type) {
-//   size_t buf_len = strlen(val) / 2 - 1;
-//   uint8_t *buf = eip712_alloc(mem, buf_len);
-
-//   size_t out_len = hex_to_bytes(val, buf);
-//   ASSERT(out_len == buf_len);
-
-//   return gen_item_mem(mem, parent, key, buf, buf_len, type);
-// }
 
 e_item *gen_item_mem(e_mem *mem, e_item *parent, const char *key,
                      const uint8_t *val, size_t val_size, e_type type) {
@@ -297,11 +273,94 @@ void keccak_256(const uint8_t *buf, size_t buf_len, uint8_t *result) {
 // encode
 
 bool is_def_type(const char *t) {
-  // TODO, can be optimized here
-  for (size_t i = 0; i < sizeof(G_EIP712_DEFALUT_TYPE) / sizeof(int *); i++) {
-    if (strcmp(t, G_EIP712_DEFALUT_TYPE[i]) == 0) return true;
+  size_t len = strlen(t);
+  if (len < 4) {
+    return false;
   }
-  return false;
+  switch (t[0]) {
+    case 'a':
+      return strcmp(t, "address") == 0;
+    case 'b':
+      switch (len) {
+        case 4:
+          return strcmp(t, "bool") == 0;
+        case 5:
+          return strcmp(t, "bytes") == 0;
+        case 6:
+          if (strcmp(t, "bytes1") == 0)
+            return true;
+          else if (strcmp(t, "bytes2") == 0)
+            return true;
+          else if (strcmp(t, "bytes4") == 0)
+            return true;
+          else if (strcmp(t, "bytes8") == 0)
+            return true;
+          else
+            return false;
+        case 7:
+          if (strcmp(t, "bytes16") == 0)
+            return true;
+          else if (strcmp(t, "bytes32") == 0)
+            return true;
+          else
+            return false;
+        default:
+          return false;
+      }
+    case 'i':
+      switch (len) {
+        case 4:
+          return strcmp(t, "int8") == 0;
+        case 5:
+          if (strcmp(t, "int16") == 0)
+            return true;
+          else if (strcmp(t, "int32") == 0)
+            return true;
+          else if (strcmp(t, "int64") == 0)
+            return true;
+        case 6:
+          if (strcmp(t, "int128") == 0)
+            return true;
+          else if (strcmp(t, "int256") == 0)
+            return true;
+        default:
+          return false;
+      }
+    case 's':
+      return strcmp(t, "string") == 0;
+    case 'u':
+      switch (len) {
+        case 5:
+          return strcmp(t, "uint8") == 0;
+        case 6:
+          if (strcmp(t, "uint16") == 0)
+            return true;
+          else if (strcmp(t, "uint32") == 0)
+            return true;
+          else if (strcmp(t, "uint64") == 0)
+            return true;
+        case 7:
+          if (strcmp(t, "uint128") == 0)
+            return true;
+          else if (strcmp(t, "uint256") == 0)
+            return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+
+  // const char *eip712_default_type[] = {
+  //     "address", "bool",    "bytes1",  "bytes2",  "bytes4", "bytes8",
+  //     "bytes16", "bytes32", "bytes",   "int8",    "int16",  "int32",
+  //     "int64",   "int128",  "int256",  "string",  "uint8",  "uint16",
+  //     "uint32",  "uint64",  "uint128", "uint256",
+  // };
+  // for (size_t i = 0; i < sizeof(eip712_default_type) / sizeof(int *); i++) {
+  //   if (strcmp(t, eip712_default_type[i]) == 0) return true;
+  // }
+  // return false;
 }
 
 bool type_deps_list_has(eip712_type_deps_item *begin, const char *type_name) {
@@ -330,11 +389,11 @@ int parse_type(e_item *types, const char *type_name, char *type_str,
 
   it = it->value.data_struct;
 
-  const char *item_name;
-  const char *item_type;
-  const char *item_type_name;
+  const char *item_name = NULL;
+  const char *item_type = NULL;
+  const char *item_type_name = NULL;
 
-  uint8_t mem_buffer[1024 * 2] = {0};  // TODO
+  uint8_t mem_buffer[1024 * 2] = {0};  // TODO 2k can meet current needs
   e_mem mem = eip712_gen_mem(mem_buffer, sizeof(mem_buffer));
 
   eip712_type_deps_item *deps_type = NULL;
@@ -477,7 +536,6 @@ int parse_int(e_item *val, const char *type, uint8_t *encoded) {
 
 int parse_bytes(e_item *val, const char *type, uint8_t *encoded) {
   CHECK2(!is_array(type), EIP712ERR_ENCODE_BYTES);
-  // TODO need check type
 
   if (strcmp(type, "bytes") == 0) {
     ASSERT(false);  // TODO temporarily unavailable
@@ -686,6 +744,7 @@ void uint8_to_hex(uint8_t d, char *out) {
   out[1] = i_to_str(d & 0xF);
 }
 
+#ifdef EIP712DBG
 void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len) {
   char output_buf[1024 * 4] = {0};
   size_t buf_pos = 0;
@@ -706,6 +765,9 @@ void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len) {
 
   EIP712_DBG_PRINT("%s", output_buf);
 }
+#else
+void EIP712_DBG_PRINT_mem(const char *name, const uint8_t *buf, size_t len) {}
+#endif
 
 #define APPEND_STR(data) append_str(output_str, pos, data)
 
@@ -728,35 +790,51 @@ void output_eip712_json(e_item *it, char *output_str, size_t *pos) {
         APPEND_STR(it->key);
         APPEND_STR("\":");
       }
-
-      if (it->type == ETYPE_STRING) {
-        APPEND_STR("\"");
-        APPEND_STR(it->value.data_string);
-        APPEND_STR("\"");
-      } else if (it->type == ETYPE_STRUCT) {
-        output_eip712_json(it, output_str, pos);
-      } else if (it->type == ETYPE_ARRAY) {
-        APPEND_STR("[");
-        e_item *itt = it->value.data_struct;
-        while (itt) {
-          output_eip712_json(itt, output_str, pos);
-          if (itt->sibling) APPEND_STR(",");
-          itt = itt->sibling;
+      switch (it->type) {
+        case ETYPE_STRING: {
+          APPEND_STR("\"");
+          APPEND_STR(it->value.data_string);
+          APPEND_STR("\"");
+          break;
         }
-        APPEND_STR("]");
-      } else if (it->type == ETYPE_UINT256) {
-        APPEND_STR("\"");
-        output_mem_buf(it->value.data_number, 32, output_str, pos);
-        APPEND_STR("\"");
-      } else if (it->type == ETYPE_BYTES32) {
-        APPEND_STR("\"");
-        output_mem_buf(it->value.data_number, 32, output_str, pos);
-        APPEND_STR("\"");
-      } else if (it->type == ETYPE_ADDRESS) {
-        APPEND_STR("\"");
-        output_mem_buf(it->value.data_bytes.data, it->value.data_bytes.len,
-                       output_str, pos);
-        APPEND_STR("\"");
+        case ETYPE_STRUCT: {
+          output_eip712_json(it, output_str, pos);
+          break;
+        }
+        case ETYPE_ARRAY: {
+          APPEND_STR("[");
+          e_item *itt = it->value.data_struct;
+          while (itt) {
+            output_eip712_json(itt, output_str, pos);
+            if (itt->sibling) APPEND_STR(",");
+            itt = itt->sibling;
+          }
+          APPEND_STR("]");
+          break;
+        }
+        case ETYPE_UINT256: {
+          APPEND_STR("\"");
+          output_mem_buf(it->value.data_number, 32, output_str, pos);
+          APPEND_STR("\"");
+          break;
+        }
+        case ETYPE_BYTES32: {
+          APPEND_STR("\"");
+          output_mem_buf(it->value.data_number, 32, output_str, pos);
+          APPEND_STR("\"");
+          break;
+        }
+        case ETYPE_ADDRESS: {
+          APPEND_STR("\"");
+          output_mem_buf(it->value.data_bytes.data, it->value.data_bytes.len,
+                         output_str, pos);
+          APPEND_STR("\"");
+          break;
+        }
+        default: {
+          ASSERT(false);
+          break;
+        }
       }
       if (it->sibling) APPEND_STR(",");
       it = it->sibling;
