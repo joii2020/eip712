@@ -19,9 +19,9 @@ Get the hash according to eip-712 through the passed parameters.
 ### Struct
 ```
 typedef struct _eip712_domain {
-  uint8_t chain_id[32];
+  uint8_t chain_id[EIP712_HASH_SIZE];
   char* name;
-  uint8_t* verifying_contract;
+  uint8_t verifying_contract[20];
   char* version;
 } eip712_domain;
 
@@ -30,11 +30,27 @@ typedef struct _eip712_active {
   char* params;
 } eip712_active;
 
+typedef struct _eip712_cell {
+  char* capacity;
+  char* lock;
+  char* type;
+  char* data;
+  char* extra_data;
+} eip712_cell;
+
 typedef struct _eip712_data {
-  eip712_domain doamin;
+  eip712_domain domain;
   eip712_active active;
-  char* cell_extra_data;
   char* transaction_das_message;
+  char* inputs_capacity;
+  char* outputs_capacity;
+  char* fee;
+  uint8_t digest[32];
+
+  eip712_cell* inputs;
+  size_t inputs_len;
+  eip712_cell* outputs;
+  size_t outputs_len;
 } eip712_data;
 ```
 
@@ -80,5 +96,7 @@ Last message hash: 0xcce661e249e03e2e0c581e1763fa1432491863c625a4128dd966822cc5f
 #### C testcases
 Verify that the C code is executed correctly and check for memory problems, Also need to write fuzzing tests.
 
-#### Contract Testcases
-Test cases that are actually executed in the contract, use rust.
+## NOTE
+* Only functions declared in eip712.h are tested
+* Tests are executed directly in ckb-debugger
+* All strings must be \0 terminated
