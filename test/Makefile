@@ -9,7 +9,7 @@ CC := $(TARGET)gcc
 LD := $(TARGET)gcc
 OBJCOPY := $(TARGET)objcopy
 
-CFLAGS := -fPIC -O0 -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections -Wall -Werror -Wno-nonnull -Wno-unused-function -I ./../ -I ./../src
+CFLAGS := -fPIC -O1 -g -fno-builtin-printf -fno-builtin-memcmp -fvisibility=hidden -fdata-sections -ffunction-sections -Wall -Werror -Wno-nonnull -Wno-unused-function -I ./../ -I ./../src
 ifeq ($(ENABLE_RVV), 1)
 	CFLAGS := $(CFLAGS) -Wno-nonnull-compare -nostdinc -nostdlib -nostartfiles -I ./../deps/ckb-c-stdlib -I ./../deps/ckb-c-stdlib/libc -I ./../deps/ckb-c-stdlib/molecule -DCKB_C_STDLIB_PRINTF
 	LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections

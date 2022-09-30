@@ -1,0 +1,15 @@
+name: TEST
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install ckb-debugger
+      run: cargo install --git https://github.com/nervosnetwork/ckb-standalone-debugger.git
+    - name: Run example
+      run: ./run.sh
+    - name: Run cases
+      run: cd test && ./run.sh

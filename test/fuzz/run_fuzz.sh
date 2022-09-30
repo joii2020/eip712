@@ -3,6 +3,7 @@ CUR_DIR=$(dirname $(readlink -f "$0"))
 cd $CUR_DIR
 
 make clean
+mkdir -p build
 make all
 if (( $? == 0 ))
 then
